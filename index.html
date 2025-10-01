@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            touch-action: none; /* Prevents scrolling on touch devices when drawing */
+            touch-action: manipulation; /* More flexible than 'none' */
         }
         .timeline-frame {
             border: 2px solid transparent;
@@ -33,9 +33,9 @@
         }
     </style>
 </head>
-<body class="bg-gray-800 text-white flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+<body class="bg-gray-800 text-white flex flex-col items-center justify-start min-h-screen p-4">
 
-    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 h-[95vh]">
+    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-4">
 
         <!-- Left Panel: Tools and Controls -->
         <div class="lg:w-1/5 bg-gray-700 p-4 rounded-lg shadow-lg flex flex-col gap-4">
@@ -71,18 +71,22 @@
             <!-- Playback Controls -->
             <div class="mt-auto border-t border-gray-600 pt-4">
                  <h2 class="text-lg font-semibold mb-2 text-center">Playback</h2>
-                <div class="flex items-center justify-center gap-2 mb-2">
-                    <button id="play-pause" class="bg-green-500 hover:bg-green-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
+                <div class="flex items-center justify-center gap-4 mb-2">
+                    <button id="play-pause" title="Play/Pause" class="bg-green-500 hover:bg-green-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </button>
+                    <button id="download-btn" title="Download Animation" class="bg-blue-500 hover:bg-blue-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </button>
                 </div>
+                 <p id="recording-status" class="text-center text-sm text-yellow-400 h-4"></p>
                 <label for="fps-slider" class="block text-center">FPS: <span id="fps-value">12</span></label>
                 <input type="range" id="fps-slider" min="1" max="24" value="12" class="w-full">
             </div>
         </div>
 
         <!-- Center Panel: Canvas -->
-        <div class="flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg shadow-lg relative">
+        <div class="flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg shadow-lg relative min-h-[50vh]">
             <div id="canvas-container" class="relative w-full aspect-video max-w-full">
                 <canvas id="onion-skin-canvas-behind" class="onion-skin-canvas rounded-lg"></canvas>
                 <canvas id="canvas"></canvas>
@@ -93,23 +97,24 @@
     </div>
 
     <!-- Bottom Panel: Timeline -->
-    <div class="w-full max-w-7xl mx-auto bg-gray-700 p-4 rounded-lg shadow-lg mt-4 h-[25vh] lg:h-auto">
+    <div class="w-full max-w-7xl mx-auto bg-gray-700 p-4 rounded-lg shadow-lg mt-4">
         <h2 class="text-lg font-semibold mb-2 text-center">Timeline</h2>
-        <div id="timeline" class="flex items-center gap-2 overflow-x-auto pb-4 h-full">
+        <div id="timeline" class="flex items-center gap-2 overflow-x-auto pb-4 h-full min-h-[120px]">
             <!-- Timeline frames will be injected here -->
         </div>
     </div>
     
     <!-- Help Modal -->
-    <button id="help-button" class="fixed bottom-4 right-4 bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-blue-600">?</button>
-    <div id="help-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
+    <button id="help-button" class="fixed bottom-4 right-4 bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-blue-600 z-10">?</button>
+    <div id="help-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-20">
         <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
             <h2 class="text-2xl font-bold mb-4">How to Use the Animation Tool</h2>
             <p class="mb-2">1. **Draw** on the white canvas in the middle.</p>
             <p class="mb-2">2. **Add a New Frame** using the large '+' button in the timeline.</p>
             <p class="mb-2">3. **Onion Skin:** Check this box to see a faint outline of your previous and next drawings, which helps make your animation smooth.</p>
             <p class="mb-2">4. **Play:** Use the green play button to see your animation in action. Adjust the FPS (Frames Per Second) slider to change the speed.</p>
-            <p class="mb-4">5. **Saving:** This tool doesn't have a file save feature. To save your work, use screen recording software (like OBS, QuickTime, or a browser extension) to record your animation playing on screen.</p>
+            <p class="mb-2">5. **Download:** Click the download button to save your animation as a `.webm` video file. The app will record your animation once and trigger a download.</p>
+            <p class="mb-4">6. **Saving:** This tool doesn't have a file save feature for projects. To save your work-in-progress, use screen recording software to record your animation playing on screen.</p>
             <button id="close-help" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Got it!</button>
         </div>
     </div>
@@ -132,6 +137,8 @@
             const eraserTool = document.getElementById('eraser-tool');
             const timeline = document.getElementById('timeline');
             const playPauseBtn = document.getElementById('play-pause');
+            const downloadBtn = document.getElementById('download-btn');
+            const recordingStatus = document.getElementById('recording-status');
             const fpsSlider = document.getElementById('fps-slider');
             const fpsValue = document.getElementById('fps-value');
             const onionSkinCheckbox = document.getElementById('onion-skin');
@@ -163,19 +170,22 @@
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
 
+                let clientX, clientY;
                 if (e.touches && e.touches[0]) {
-                    return {
-                        x: (e.touches[0].clientX - rect.left) * scaleX,
-                        y: (e.touches[0].clientY - rect.top) * scaleY,
-                    };
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
                 }
                 return {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY,
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY,
                 };
             }
 
             function startDrawing(e) {
+                if(e.target === canvas) e.preventDefault();
                 isDrawing = true;
                 const { x, y } = getMousePos(e);
                 ctx.beginPath();
@@ -184,7 +194,7 @@
 
             function draw(e) {
                 if (!isDrawing) return;
-                e.preventDefault(); // Prevent scrolling on touch
+                if(e.target === canvas) e.preventDefault();
                 const { x, y } = getMousePos(e);
                 ctx.lineWidth = brushSizeSlider.value;
                 ctx.lineCap = 'round';
@@ -209,8 +219,8 @@
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseout', stopDrawing);
 
-            canvas.addEventListener('touchstart', startDrawing);
-            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchstart', startDrawing, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
             canvas.addEventListener('touchend', stopDrawing);
 
             // --- Frame Management ---
@@ -223,13 +233,14 @@
                 const img = new Image();
                 img.onload = () => {
                     clearCanvas();
-                    ctx.drawImage(img, 0, 0);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 };
                 img.src = frames[index];
             }
 
             function clearCanvas() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
             
             function redrawAll() {
@@ -275,6 +286,7 @@
                 frameNumber.textContent = index + 1;
                 
                 frameDiv.onclick = () => {
+                    if (isPlaying) return;
                     saveFrame(); // Save current work before switching
                     currentFrameIndex = index;
                     loadFrame(index);
@@ -284,7 +296,7 @@
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.innerHTML = 'X';
-                deleteBtn.className = 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-50 hover:opacity-100';
+                deleteBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-50 hover:opacity-100';
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation();
                     deleteFrame(index);
@@ -292,7 +304,9 @@
 
                 frameContainer.appendChild(frameDiv);
                 frameContainer.appendChild(frameNumber);
-                frameContainer.appendChild(deleteBtn);
+                if (frames.length > 1) {
+                    frameContainer.appendChild(deleteBtn);
+                }
                 
                 return frameContainer;
             }
@@ -306,20 +320,22 @@
 
             function addNewFrame() {
                 saveFrame();
-                const newFrameData = canvas.toDataURL(); // duplicate current frame
-                frames.splice(currentFrameIndex + 1, 0, newFrameData);
+                const newCanvas = document.createElement('canvas');
+                newCanvas.width = canvas.width;
+                newCanvas.height = canvas.height;
+                const newCtx = newCanvas.getContext('2d');
+                newCtx.fillStyle = 'white';
+                newCtx.fillRect(0,0,newCanvas.width, newCanvas.height);
+                
+                frames.splice(currentFrameIndex + 1, 0, newCanvas.toDataURL());
                 currentFrameIndex++;
                 loadFrame(currentFrameIndex);
                 renderTimeline();
-                updateTimelineThumbnail(currentFrameIndex -1); // Update previous thumbnail
-                updateTimelineThumbnail(currentFrameIndex);
+                updateTimelineThumbnail(currentFrameIndex - 1);
             }
             
             function deleteFrame(index) {
-                if (frames.length <= 1) {
-                    alert("Cannot delete the last frame!");
-                    return;
-                }
+                if (frames.length <= 1) return;
                 frames.splice(index, 1);
                 if (currentFrameIndex >= index) {
                     currentFrameIndex = Math.max(0, currentFrameIndex - 1);
@@ -356,7 +372,7 @@
 
             function stopAnimation() {
                 clearInterval(animationInterval);
-                loadFrame(currentFrameIndex); // Return to the frame where user stopped
+                loadFrame(currentFrameIndex); 
             }
             
             playPauseBtn.addEventListener('click', () => {
@@ -382,17 +398,13 @@
             // --- Tool Logic ---
             penTool.addEventListener('click', () => {
                 currentTool = 'pen';
-                penTool.classList.add('bg-blue-500');
-                penTool.classList.remove('bg-gray-500');
-                eraserTool.classList.add('bg-gray-500');
-                eraserTool.classList.remove('bg-blue-500');
+                penTool.classList.add('bg-blue-500'); penTool.classList.remove('bg-gray-500');
+                eraserTool.classList.add('bg-gray-500'); eraserTool.classList.remove('bg-blue-500');
             });
             eraserTool.addEventListener('click', () => {
                 currentTool = 'eraser';
-                eraserTool.classList.add('bg-blue-500');
-                eraserTool.classList.remove('bg-gray-500');
-                penTool.classList.add('bg-gray-500');
-                penTool.classList.remove('bg-blue-500');
+                eraserTool.classList.add('bg-blue-500'); eraserTool.classList.remove('bg-gray-500');
+                penTool.classList.add('bg-gray-500'); penTool.classList.remove('bg-blue-500');
             });
             
             // --- Onion Skinning ---
@@ -402,23 +414,20 @@
                 
                 if (!onionSkinCheckbox.checked) return;
 
-                // Previous frame (behind)
                 if (currentFrameIndex > 0) {
                     const prevImg = new Image();
                     prevImg.onload = () => {
                         onionBehindCtx.globalAlpha = 0.3;
-                        onionBehindCtx.strokeStyle = 'red';
-                        onionBehindCtx.drawImage(prevImg, 0, 0);
+                        onionBehindCtx.drawImage(prevImg, 0, 0, canvas.width, canvas.height);
                     };
                     prevImg.src = frames[currentFrameIndex - 1];
                 }
 
-                // Next frame (ahead)
                 if (currentFrameIndex < frames.length - 1) {
                      const nextImg = new Image();
                     nextImg.onload = () => {
                         onionAheadCtx.globalAlpha = 0.3;
-                        onionAheadCtx.drawImage(nextImg, 0, 0);
+                        onionAheadCtx.drawImage(nextImg, 0, 0, canvas.width, canvas.height);
                     };
                     nextImg.src = frames[currentFrameIndex + 1];
                 }
@@ -426,6 +435,54 @@
 
             onionSkinCheckbox.addEventListener('change', renderOnionSkins);
             
+            // --- Download Logic ---
+            downloadBtn.addEventListener('click', async () => {
+                if (isPlaying) {
+                    alert("Please stop the animation before downloading.");
+                    return;
+                }
+                
+                recordingStatus.textContent = 'Recording...';
+                downloadBtn.disabled = true;
+                playPauseBtn.disabled = true;
+
+                const stream = canvas.captureStream(parseInt(fpsSlider.value));
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                const chunks = [];
+                
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'animation.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    recordingStatus.textContent = '';
+                    downloadBtn.disabled = false;
+                    playPauseBtn.disabled = false;
+                    loadFrame(currentFrameIndex); // Restore original frame
+                };
+
+                recorder.start();
+
+                // Animate once for recording
+                let frameToRecord = 0;
+                const recordInterval = setInterval(() => {
+                    if (frameToRecord >= frames.length) {
+                        clearInterval(recordInterval);
+                        recorder.stop();
+                        return;
+                    }
+                    loadFrame(frameToRecord);
+                    frameToRecord++;
+                }, 1000 / fpsSlider.value);
+            });
+
             // --- Help Modal Logic ---
             helpButton.addEventListener('click', () => helpModal.style.display = 'flex');
             closeHelpButton.addEventListener('click', () => helpModal.style.display = 'none');
@@ -452,3 +509,4 @@
 
 </body>
 </html>
+
