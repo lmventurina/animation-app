@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Animation Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevents scrolling on touch devices when drawing */
+        }
+        .timeline-frame {
+            border: 2px solid transparent;
+        }
+        .timeline-frame.active {
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        #canvas {
+            cursor: crosshair;
+            background-color: white;
+            border-radius: 0.5rem;
+        }
+        .onion-skin-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Allows clicks to go through to the main canvas */
+        }
+        .modal {
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+<body class="bg-gray-800 text-white flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+
+    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 h-[95vh]">
+
+        <!-- Left Panel: Tools and Controls -->
+        <div class="lg:w-1/5 bg-gray-700 p-4 rounded-lg shadow-lg flex flex-col gap-4">
+            <h1 class="text-xl font-bold text-center border-b border-gray-600 pb-2">Animation Tools</h1>
+
+            <!-- Tool Selection -->
+            <div>
+                <h2 class="text-lg font-semibold mb-2">Tool</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="pen-tool" class="bg-blue-500 hover:bg-blue-600 p-2 rounded-lg">Pen</button>
+                    <button id="eraser-tool" class="bg-gray-500 hover:bg-gray-600 p-2 rounded-lg">Eraser</button>
+                </div>
+            </div>
+
+            <!-- Brush Size -->
+            <div>
+                <label for="brush-size" class="block text-lg font-semibold mb-2">Brush Size</label>
+                <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
+            </div>
+
+            <!-- Color Picker -->
+            <div>
+                <label for="color-picker" class="block text-lg font-semibold mb-2">Color</label>
+                <input type="color" id="color-picker" value="#000000" class="w-full h-10 p-1 bg-gray-600 rounded-lg cursor-pointer">
+            </div>
+            
+            <!-- Onion Skin -->
+            <div class="relative flex items-center">
+                 <input type="checkbox" id="onion-skin" class="h-4 w-4 rounded">
+                 <label for="onion-skin" class="ml-2 text-lg font-semibold">Onion Skin</label>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="mt-auto border-t border-gray-600 pt-4">
+                 <h2 class="text-lg font-semibold mb-2 text-center">Playback</h2>
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <button id="play-pause" class="bg-green-500 hover:bg-green-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                </div>
+                <label for="fps-slider" class="block text-center">FPS: <span id="fps-value">12</span></label>
+                <input type="range" id="fps-slider" min="1" max="24" value="12" class="w-full">
+            </div>
+        </div>
+
+        <!-- Center Panel: Canvas -->
+        <div class="flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg shadow-lg relative">
+            <div id="canvas-container" class="relative w-full aspect-video max-w-full">
+                <canvas id="onion-skin-canvas-behind" class="onion-skin-canvas rounded-lg"></canvas>
+                <canvas id="canvas"></canvas>
+                <canvas id="onion-skin-canvas-ahead" class="onion-skin-canvas rounded-lg"></canvas>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Bottom Panel: Timeline -->
+    <div class="w-full max-w-7xl mx-auto bg-gray-700 p-4 rounded-lg shadow-lg mt-4 h-[25vh] lg:h-auto">
+        <h2 class="text-lg font-semibold mb-2 text-center">Timeline</h2>
+        <div id="timeline" class="flex items-center gap-2 overflow-x-auto pb-4 h-full">
+            <!-- Timeline frames will be injected here -->
+        </div>
+    </div>
+    
+    <!-- Help Modal -->
+    <button id="help-button" class="fixed bottom-4 right-4 bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-blue-600">?</button>
+    <div id="help-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
+            <h2 class="text-2xl font-bold mb-4">How to Use the Animation Tool</h2>
+            <p class="mb-2">1. **Draw** on the white canvas in the middle.</p>
+            <p class="mb-2">2. **Add a New Frame** using the large '+' button in the timeline.</p>
+            <p class="mb-2">3. **Onion Skin:** Check this box to see a faint outline of your previous and next drawings, which helps make your animation smooth.</p>
+            <p class="mb-2">4. **Play:** Use the green play button to see your animation in action. Adjust the FPS (Frames Per Second) slider to change the speed.</p>
+            <p class="mb-4">5. **Saving:** This tool doesn't have a file save feature. To save your work, use screen recording software (like OBS, QuickTime, or a browser extension) to record your animation playing on screen.</p>
+            <button id="close-help" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Got it!</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('canvas');
+            const onionBehindCanvas = document.getElementById('onion-skin-canvas-behind');
+            const onionAheadCanvas = document.getElementById('onion-skin-canvas-ahead');
+            const canvasContainer = document.getElementById('canvas-container');
+
+            const ctx = canvas.getContext('2d');
+            const onionBehindCtx = onionBehindCanvas.getContext('2d');
+            const onionAheadCtx = onionAheadCanvas.getContext('2d');
+            
+            const brushSizeSlider = document.getElementById('brush-size');
+            const colorPicker = document.getElementById('color-picker');
+            const penTool = document.getElementById('pen-tool');
+            const eraserTool = document.getElementById('eraser-tool');
+            const timeline = document.getElementById('timeline');
+            const playPauseBtn = document.getElementById('play-pause');
+            const fpsSlider = document.getElementById('fps-slider');
+            const fpsValue = document.getElementById('fps-value');
+            const onionSkinCheckbox = document.getElementById('onion-skin');
+            
+            const helpButton = document.getElementById('help-button');
+            const helpModal = document.getElementById('help-modal');
+            const closeHelpButton = document.getElementById('close-help');
+
+            let isDrawing = false;
+            let currentTool = 'pen';
+            let frames = [];
+            let currentFrameIndex = 0;
+            let isPlaying = false;
+            let animationInterval;
+
+            // --- Canvas Setup ---
+            function resizeCanvas() {
+                const { width, height } = canvasContainer.getBoundingClientRect();
+                canvas.width = onionBehindCanvas.width = onionAheadCanvas.width = width;
+                canvas.height = onionBehindCanvas.height = onionAheadCanvas.height = height;
+                redrawAll();
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+
+            // --- Drawing Logic ---
+            function getMousePos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                if (e.touches && e.touches[0]) {
+                    return {
+                        x: (e.touches[0].clientX - rect.left) * scaleX,
+                        y: (e.touches[0].clientY - rect.top) * scaleY,
+                    };
+                }
+                return {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY,
+                };
+            }
+
+            function startDrawing(e) {
+                isDrawing = true;
+                const { x, y } = getMousePos(e);
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                e.preventDefault(); // Prevent scrolling on touch
+                const { x, y } = getMousePos(e);
+                ctx.lineWidth = brushSizeSlider.value;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = currentTool === 'pen' ? colorPicker.value : '#FFFFFF';
+                
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            }
+
+            function stopDrawing() {
+                if (!isDrawing) return;
+                isDrawing = false;
+                ctx.beginPath();
+                saveFrame();
+                updateTimelineThumbnail(currentFrameIndex);
+            }
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            canvas.addEventListener('touchstart', startDrawing);
+            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // --- Frame Management ---
+            function saveFrame() {
+                frames[currentFrameIndex] = canvas.toDataURL();
+            }
+
+            function loadFrame(index) {
+                if (index < 0 || index >= frames.length) return;
+                const img = new Image();
+                img.onload = () => {
+                    clearCanvas();
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = frames[index];
+            }
+
+            function clearCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            function redrawAll() {
+                 loadFrame(currentFrameIndex);
+                 renderOnionSkins();
+                 frames.forEach((_, i) => updateTimelineThumbnail(i));
+            }
+
+            // --- Timeline Logic ---
+            function renderTimeline() {
+                timeline.innerHTML = '';
+                frames.forEach((_, index) => {
+                    const frameDiv = createTimelineFrame(index);
+                    timeline.appendChild(frameDiv);
+                });
+                const addFrameBtn = document.createElement('button');
+                addFrameBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                `;
+                addFrameBtn.className = 'bg-gray-600 hover:bg-gray-500 rounded-lg p-2 flex items-center justify-center flex-shrink-0';
+                addFrameBtn.onclick = addNewFrame;
+                timeline.appendChild(addFrameBtn);
+                updateActiveFrameHighlight();
+            }
+
+            function createTimelineFrame(index) {
+                const frameContainer = document.createElement('div');
+                frameContainer.className = 'relative flex-shrink-0';
+                
+                const frameDiv = document.createElement('div');
+                frameDiv.className = 'timeline-frame bg-white w-32 h-20 rounded-lg flex items-center justify-center text-gray-800 font-bold overflow-hidden cursor-pointer';
+                frameDiv.dataset.index = index;
+                
+                const img = document.createElement('img');
+                img.className = 'w-full h-full object-contain';
+                img.id = `thumb-${index}`;
+                frameDiv.appendChild(img);
+
+                const frameNumber = document.createElement('span');
+                frameNumber.className = 'absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded';
+                frameNumber.textContent = index + 1;
+                
+                frameDiv.onclick = () => {
+                    saveFrame(); // Save current work before switching
+                    currentFrameIndex = index;
+                    loadFrame(index);
+                    updateActiveFrameHighlight();
+                    renderOnionSkins();
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = 'X';
+                deleteBtn.className = 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-50 hover:opacity-100';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteFrame(index);
+                };
+
+                frameContainer.appendChild(frameDiv);
+                frameContainer.appendChild(frameNumber);
+                frameContainer.appendChild(deleteBtn);
+                
+                return frameContainer;
+            }
+            
+            function updateTimelineThumbnail(index) {
+                const thumbImg = document.getElementById(`thumb-${index}`);
+                if (thumbImg) {
+                    thumbImg.src = frames[index];
+                }
+            }
+
+            function addNewFrame() {
+                saveFrame();
+                const newFrameData = canvas.toDataURL(); // duplicate current frame
+                frames.splice(currentFrameIndex + 1, 0, newFrameData);
+                currentFrameIndex++;
+                loadFrame(currentFrameIndex);
+                renderTimeline();
+                updateTimelineThumbnail(currentFrameIndex -1); // Update previous thumbnail
+                updateTimelineThumbnail(currentFrameIndex);
+            }
+            
+            function deleteFrame(index) {
+                if (frames.length <= 1) {
+                    alert("Cannot delete the last frame!");
+                    return;
+                }
+                frames.splice(index, 1);
+                if (currentFrameIndex >= index) {
+                    currentFrameIndex = Math.max(0, currentFrameIndex - 1);
+                }
+                loadFrame(currentFrameIndex);
+                renderTimeline();
+                renderOnionSkins();
+            }
+
+
+            function updateActiveFrameHighlight() {
+                document.querySelectorAll('.timeline-frame').forEach(frame => {
+                    frame.classList.remove('active');
+                    if (parseInt(frame.dataset.index) === currentFrameIndex) {
+                        frame.classList.add('active');
+                        frame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+                });
+            }
+
+            // --- Animation Playback ---
+            function playAnimation() {
+                let frame = 0;
+                animationInterval = setInterval(() => {
+                    if (frame >= frames.length) {
+                        frame = 0; // Loop
+                    }
+                    loadFrame(frame);
+                    currentFrameIndex = frame; // Keep track for UI
+                    updateActiveFrameHighlight();
+                    frame++;
+                }, 1000 / fpsSlider.value);
+            }
+
+            function stopAnimation() {
+                clearInterval(animationInterval);
+                loadFrame(currentFrameIndex); // Return to the frame where user stopped
+            }
+            
+            playPauseBtn.addEventListener('click', () => {
+                isPlaying = !isPlaying;
+                if (isPlaying) {
+                    saveFrame();
+                    playPauseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+                    playAnimation();
+                } else {
+                    playPauseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+                    stopAnimation();
+                }
+            });
+
+            fpsSlider.addEventListener('input', () => {
+                fpsValue.textContent = fpsSlider.value;
+                if (isPlaying) {
+                    stopAnimation();
+                    playAnimation();
+                }
+            });
+
+            // --- Tool Logic ---
+            penTool.addEventListener('click', () => {
+                currentTool = 'pen';
+                penTool.classList.add('bg-blue-500');
+                penTool.classList.remove('bg-gray-500');
+                eraserTool.classList.add('bg-gray-500');
+                eraserTool.classList.remove('bg-blue-500');
+            });
+            eraserTool.addEventListener('click', () => {
+                currentTool = 'eraser';
+                eraserTool.classList.add('bg-blue-500');
+                eraserTool.classList.remove('bg-gray-500');
+                penTool.classList.add('bg-gray-500');
+                penTool.classList.remove('bg-blue-500');
+            });
+            
+            // --- Onion Skinning ---
+            function renderOnionSkins() {
+                onionBehindCtx.clearRect(0, 0, canvas.width, canvas.height);
+                onionAheadCtx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (!onionSkinCheckbox.checked) return;
+
+                // Previous frame (behind)
+                if (currentFrameIndex > 0) {
+                    const prevImg = new Image();
+                    prevImg.onload = () => {
+                        onionBehindCtx.globalAlpha = 0.3;
+                        onionBehindCtx.strokeStyle = 'red';
+                        onionBehindCtx.drawImage(prevImg, 0, 0);
+                    };
+                    prevImg.src = frames[currentFrameIndex - 1];
+                }
+
+                // Next frame (ahead)
+                if (currentFrameIndex < frames.length - 1) {
+                     const nextImg = new Image();
+                    nextImg.onload = () => {
+                        onionAheadCtx.globalAlpha = 0.3;
+                        onionAheadCtx.drawImage(nextImg, 0, 0);
+                    };
+                    nextImg.src = frames[currentFrameIndex + 1];
+                }
+            }
+
+            onionSkinCheckbox.addEventListener('change', renderOnionSkins);
+            
+            // --- Help Modal Logic ---
+            helpButton.addEventListener('click', () => helpModal.style.display = 'flex');
+            closeHelpButton.addEventListener('click', () => helpModal.style.display = 'none');
+            
+            // --- Initialization ---
+            function initialize() {
+                const blankCanvas = document.createElement('canvas');
+                blankCanvas.width = 1280;
+                blankCanvas.height = 720;
+                const blankCtx = blankCanvas.getContext('2d');
+                blankCtx.fillStyle = 'white';
+                blankCtx.fillRect(0,0,1280,720);
+
+                frames.push(blankCanvas.toDataURL());
+                resizeCanvas();
+                renderTimeline();
+                loadFrame(0);
+                updateTimelineThumbnail(0);
+            }
+
+            initialize();
+        });
+    </script>
+
+</body>
+</html>
