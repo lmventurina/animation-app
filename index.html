@@ -19,13 +19,19 @@
         }
         #canvas {
             cursor: crosshair;
-            background-color: white;
+            /* background-color is removed to allow transparency */
             border-radius: 0.5rem;
         }
-        .onion-skin-canvas {
+        .base-canvas {
             position: absolute;
             top: 0;
             left: 0;
+            border-radius: 0.5rem;
+        }
+        #bg-canvas {
+            background-color: white; /* Default background */
+        }
+        .onion-skin-canvas {
             pointer-events: none; /* Allows clicks to go through to the main canvas */
         }
         .modal {
@@ -68,6 +74,17 @@
                  <label for="onion-skin" class="ml-2 text-lg font-semibold">Onion Skin</label>
             </div>
 
+            <!-- Background Controls -->
+            <div class="border-t border-gray-600 pt-4">
+                <h2 class="text-lg font-semibold mb-2">Background</h2>
+                <div class="flex gap-2 items-center">
+                    <label for="bg-image-input" class="flex-1 text-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded cursor-pointer block">Upload</label>
+                    <input type="file" id="bg-image-input" accept="image/*" class="hidden">
+                    <input type="color" id="bg-color-picker" value="#FFFFFF" class="w-14 h-10 p-1 bg-gray-600 rounded-lg cursor-pointer" title="Background Color">
+                </div>
+                <button id="clear-bg-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mt-2">Clear Background</button>
+            </div>
+
             <!-- Playback Controls -->
             <div class="mt-auto border-t border-gray-600 pt-4">
                  <h2 class="text-lg font-semibold mb-2 text-center">Playback</h2>
@@ -88,9 +105,10 @@
         <!-- Center Panel: Canvas -->
         <div class="flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg shadow-lg relative min-h-[50vh]">
             <div id="canvas-container" class="relative w-full aspect-video max-w-full">
-                <canvas id="onion-skin-canvas-behind" class="onion-skin-canvas rounded-lg"></canvas>
-                <canvas id="canvas"></canvas>
-                <canvas id="onion-skin-canvas-ahead" class="onion-skin-canvas rounded-lg"></canvas>
+                <canvas id="bg-canvas" class="base-canvas"></canvas>
+                <canvas id="onion-skin-canvas-behind" class="base-canvas onion-skin-canvas"></canvas>
+                <canvas id="canvas" class="base-canvas relative"></canvas>
+                <canvas id="onion-skin-canvas-ahead" class="base-canvas onion-skin-canvas"></canvas>
             </div>
         </div>
         
@@ -109,12 +127,13 @@
     <div id="help-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-20">
         <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
             <h2 class="text-2xl font-bold mb-4">How to Use the Animation Tool</h2>
-            <p class="mb-2">1. **Draw** on the white canvas in the middle.</p>
-            <p class="mb-2">2. **Add a New Frame** using the large '+' button in the timeline.</p>
-            <p class="mb-2">3. **Onion Skin:** Check this box to see a faint outline of your previous and next drawings, which helps make your animation smooth.</p>
-            <p class="mb-2">4. **Play:** Use the green play button to see your animation in action. Adjust the FPS (Frames Per Second) slider to change the speed.</p>
-            <p class="mb-2">5. **Download:** Click the download button to save your animation as a `.webm` video file. The app will record your animation once and trigger a download.</p>
-            <p class="mb-4">6. **Saving:** This tool doesn't have a file save feature for projects. To save your work-in-progress, use screen recording software to record your animation playing on screen.</p>
+            <p class="mb-2">1. **Draw** on the canvas in the middle.</p>
+            <p class="mb-2">2. **Add Frame:** Click the large '+' button in the timeline to add a new frame.</p>
+            <p class="mb-2">3. **Duplicate Frame:** Click the copy icon on a timeline frame to duplicate it.</p>
+            <p class="mb-2">4. **Background:** Use the 'Upload' button for an image background, or the color picker for a solid color.</p>
+            <p class="mb-2">5. **Onion Skin:** Check this box to see a faint outline of your previous and next drawings, which helps make your animation smooth.</p>
+            <p class="mb-2">6. **Play:** Use the play button to see your animation in action. Adjust the FPS slider to change the speed.</p>
+            <p class="mb-2">7. **Download:** Click the download button to save your animation as a `.webm` video file, including your background.</p>
             <button id="close-help" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Got it!</button>
         </div>
     </div>
@@ -123,11 +142,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('canvas');
+            const bgCanvas = document.getElementById('bg-canvas');
             const onionBehindCanvas = document.getElementById('onion-skin-canvas-behind');
             const onionAheadCanvas = document.getElementById('onion-skin-canvas-ahead');
             const canvasContainer = document.getElementById('canvas-container');
 
             const ctx = canvas.getContext('2d');
+            const bgCtx = bgCanvas.getContext('2d');
             const onionBehindCtx = onionBehindCanvas.getContext('2d');
             const onionAheadCtx = onionAheadCanvas.getContext('2d');
             
@@ -142,6 +163,9 @@
             const fpsSlider = document.getElementById('fps-slider');
             const fpsValue = document.getElementById('fps-value');
             const onionSkinCheckbox = document.getElementById('onion-skin');
+            const bgImageInput = document.getElementById('bg-image-input');
+            const bgColorPicker = document.getElementById('bg-color-picker');
+            const clearBgBtn = document.getElementById('clear-bg-btn');
             
             const helpButton = document.getElementById('help-button');
             const helpModal = document.getElementById('help-modal');
@@ -153,12 +177,19 @@
             let currentFrameIndex = 0;
             let isPlaying = false;
             let animationInterval;
+            let backgroundImage = null;
 
             // --- Canvas Setup ---
             function resizeCanvas() {
                 const { width, height } = canvasContainer.getBoundingClientRect();
-                canvas.width = onionBehindCanvas.width = onionAheadCanvas.width = width;
-                canvas.height = onionBehindCanvas.height = onionAheadCanvas.height = height;
+                canvas.width = bgCanvas.width = onionBehindCanvas.width = onionAheadCanvas.width = width;
+                canvas.height = bgCanvas.height = onionBehindCanvas.height = onionAheadCanvas.height = height;
+                if (backgroundImage) {
+                    bgCtx.drawImage(backgroundImage, 0, 0, bgCanvas.width, bgCanvas.height);
+                } else {
+                    bgCtx.fillStyle = bgColorPicker.value;
+                    bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+                }
                 redrawAll();
             }
 
@@ -198,7 +229,8 @@
                 const { x, y } = getMousePos(e);
                 ctx.lineWidth = brushSizeSlider.value;
                 ctx.lineCap = 'round';
-                ctx.strokeStyle = currentTool === 'pen' ? colorPicker.value : '#FFFFFF';
+                ctx.strokeStyle = currentTool === 'pen' ? colorPicker.value : 'rgba(0,0,0,1)';
+                ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
                 
                 ctx.lineTo(x, y);
                 ctx.stroke();
@@ -239,8 +271,7 @@
             }
 
             function clearCanvas() {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
             
             function redrawAll() {
@@ -270,10 +301,10 @@
 
             function createTimelineFrame(index) {
                 const frameContainer = document.createElement('div');
-                frameContainer.className = 'relative flex-shrink-0';
+                frameContainer.className = 'relative flex-shrink-0 group';
                 
                 const frameDiv = document.createElement('div');
-                frameDiv.className = 'timeline-frame bg-white w-32 h-20 rounded-lg flex items-center justify-center text-gray-800 font-bold overflow-hidden cursor-pointer';
+                frameDiv.className = 'timeline-frame bg-white w-32 h-20 rounded-lg flex items-center justify-center text-gray-800 font-bold overflow-hidden cursor-pointer border-2 border-gray-600';
                 frameDiv.dataset.index = index;
                 
                 const img = document.createElement('img');
@@ -294,19 +325,29 @@
                     renderOnionSkins();
                 };
 
+                const controlsContainer = document.createElement('div');
+                controlsContainer.className = 'absolute top-0 right-0 flex opacity-0 group-hover:opacity-100 transition-opacity';
+                
+                const duplicateBtn = document.createElement('button');
+                duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z" /></svg>`;
+                duplicateBtn.className = 'bg-blue-500 text-white rounded-full p-1 -mt-2 -mr-1 shadow';
+                duplicateBtn.title = 'Duplicate Frame';
+                duplicateBtn.onclick = (e) => { e.stopPropagation(); duplicateFrame(index); };
+
                 const deleteBtn = document.createElement('button');
                 deleteBtn.innerHTML = 'X';
-                deleteBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-50 hover:opacity-100';
-                deleteBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteFrame(index);
-                };
+                deleteBtn.className = 'bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center -mt-2 -mr-2 shadow';
+                deleteBtn.title = 'Delete Frame';
+                deleteBtn.onclick = (e) => { e.stopPropagation(); deleteFrame(index); };
+                
+                controlsContainer.appendChild(duplicateBtn);
+                if (frames.length > 1) {
+                    controlsContainer.appendChild(deleteBtn);
+                }
 
                 frameContainer.appendChild(frameDiv);
                 frameContainer.appendChild(frameNumber);
-                if (frames.length > 1) {
-                    frameContainer.appendChild(deleteBtn);
-                }
+                frameContainer.appendChild(controlsContainer);
                 
                 return frameContainer;
             }
@@ -323,9 +364,7 @@
                 const newCanvas = document.createElement('canvas');
                 newCanvas.width = canvas.width;
                 newCanvas.height = canvas.height;
-                const newCtx = newCanvas.getContext('2d');
-                newCtx.fillStyle = 'white';
-                newCtx.fillRect(0,0,newCanvas.width, newCanvas.height);
+                // New frames are transparent, background canvas provides color
                 
                 frames.splice(currentFrameIndex + 1, 0, newCanvas.toDataURL());
                 currentFrameIndex++;
@@ -334,6 +373,14 @@
                 updateTimelineThumbnail(currentFrameIndex - 1);
             }
             
+            function duplicateFrame(index) {
+                const frameData = frames[index];
+                frames.splice(index + 1, 0, frameData);
+                currentFrameIndex = index + 1;
+                loadFrame(currentFrameIndex);
+                renderTimeline();
+            }
+
             function deleteFrame(index) {
                 if (frames.length <= 1) return;
                 frames.splice(index, 1);
@@ -364,7 +411,7 @@
                         frame = 0; // Loop
                     }
                     loadFrame(frame);
-                    currentFrameIndex = frame; // Keep track for UI
+                    currentFrameIndex = frame;
                     updateActiveFrameHighlight();
                     frame++;
                 }, 1000 / fpsSlider.value);
@@ -407,6 +454,37 @@
                 penTool.classList.add('bg-gray-500'); penTool.classList.remove('bg-blue-500');
             });
             
+            // --- Background Logic ---
+            bgColorPicker.addEventListener('input', (e) => {
+                backgroundImage = null;
+                const color = e.target.value;
+                bgCtx.fillStyle = color;
+                bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+            });
+
+            bgImageInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        backgroundImage = img;
+                        bgColorPicker.value = '#FFFFFF';
+                        bgCtx.drawImage(img, 0, 0, bgCanvas.width, bgCanvas.height);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            clearBgBtn.addEventListener('click', () => {
+                backgroundImage = null;
+                bgColorPicker.value = '#FFFFFF';
+                bgCtx.fillStyle = 'white';
+                bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+            });
+            
             // --- Onion Skinning ---
             function renderOnionSkins() {
                 onionBehindCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -438,7 +516,7 @@
             // --- Download Logic ---
             downloadBtn.addEventListener('click', async () => {
                 if (isPlaying) {
-                    alert("Please stop the animation before downloading.");
+                    alert("Please stop animation before downloading.");
                     return;
                 }
                 
@@ -446,7 +524,12 @@
                 downloadBtn.disabled = true;
                 playPauseBtn.disabled = true;
 
-                const stream = canvas.captureStream(parseInt(fpsSlider.value));
+                const compositeCanvas = document.createElement('canvas');
+                compositeCanvas.width = canvas.width;
+                compositeCanvas.height = canvas.height;
+                const compositeCtx = compositeCanvas.getContext('2d');
+
+                const stream = compositeCanvas.captureStream(parseInt(fpsSlider.value));
                 const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
                 const chunks = [];
                 
@@ -465,20 +548,28 @@
                     recordingStatus.textContent = '';
                     downloadBtn.disabled = false;
                     playPauseBtn.disabled = false;
-                    loadFrame(currentFrameIndex); // Restore original frame
+                    loadFrame(currentFrameIndex);
                 };
 
                 recorder.start();
 
-                // Animate once for recording
+                const frameImages = await Promise.all(frames.map(frameData => {
+                    return new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.src = frameData;
+                    });
+                }));
+
                 let frameToRecord = 0;
                 const recordInterval = setInterval(() => {
-                    if (frameToRecord >= frames.length) {
+                    if (frameToRecord >= frameImages.length) {
                         clearInterval(recordInterval);
                         recorder.stop();
                         return;
                     }
-                    loadFrame(frameToRecord);
+                    compositeCtx.drawImage(bgCanvas, 0, 0);
+                    compositeCtx.drawImage(frameImages[frameToRecord], 0, 0);
                     frameToRecord++;
                 }, 1000 / fpsSlider.value);
             });
@@ -492,11 +583,9 @@
                 const blankCanvas = document.createElement('canvas');
                 blankCanvas.width = 1280;
                 blankCanvas.height = 720;
-                const blankCtx = blankCanvas.getContext('2d');
-                blankCtx.fillStyle = 'white';
-                blankCtx.fillRect(0,0,1280,720);
-
+                // Start with a transparent frame
                 frames.push(blankCanvas.toDataURL());
+
                 resizeCanvas();
                 renderTimeline();
                 loadFrame(0);
