@@ -8,7 +8,6 @@
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            touch-action: manipulation;
         }
         .timeline-frame {
             border: 2px solid transparent;
@@ -20,6 +19,7 @@
         #canvas {
             cursor: crosshair;
             border-radius: 0.5rem;
+            touch-action: none; /* Prevents page scroll on touch devices */
         }
         .base-canvas {
             position: absolute;
