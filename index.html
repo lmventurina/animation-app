@@ -94,6 +94,14 @@
     </style>
 </head>
 <body class="bg-slate-900 text-gray-300 flex flex-col h-screen overflow-hidden">
+    
+    <!-- Autosave Notification -->
+    <div id="autosave-notification" class="hidden fixed top-0 left-0 right-0 bg-indigo-600 text-white p-3 text-center z-50 flex justify-center items-center gap-4 shadow-lg">
+        <p>Unsaved work from a previous session found. Would you like to restore it?</p>
+        <button id="restore-autosave" class="bg-green-500 hover:bg-green-400 px-4 py-1 rounded-md text-sm font-semibold">Restore</button>
+        <button id="dismiss-autosave" class="bg-red-500 hover:bg-red-400 px-4 py-1 rounded-md text-sm font-semibold">Dismiss</button>
+    </div>
+
 
     <!-- Header -->
     <header class="bg-slate-800 shadow-md p-3 flex justify-between items-center z-20 border-b border-slate-700 flex-shrink-0">
@@ -254,11 +262,10 @@
                 <span id="animation-time" class="text-sm text-gray-400 font-mono">0.0s</span>
             </div>
         </div>
-        <div class="w-full overflow-x-auto pb-2 timeline-container">
-            <div id="timeline" class="flex items-center gap-2 p-2 bg-slate-700 rounded-lg h-28">
-                 <button id="add-frame" class="flex-shrink-0 bg-slate-600 hover:bg-slate-500 text-gray-300 font-bold h-24 w-40 rounded-lg flex flex-col items-center justify-center text-center p-2" title="Add New Frame">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/></svg>
-                    <span class="text-xs mt-1">Add Frame</span>
+        <div class="w-full overflow-y-auto pb-2 timeline-container max-h-60">
+            <div id="timeline" class="flex flex-wrap items-start gap-2 p-2 bg-slate-700 rounded-lg min-h-28">
+                 <button id="add-frame" class="flex-shrink-0 bg-slate-600 hover:bg-slate-500 text-gray-300 font-bold h-24 w-24 rounded-full flex items-center justify-center p-2" title="Add New Frame">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/></svg>
                  </button>
             </div>
         </div>
@@ -350,6 +357,9 @@
             const loadProjectInput = document.getElementById('load-project-input');
             const bgUploadInput = document.getElementById('bg-upload-input');
             const clearBgBtn = document.getElementById('clear-bg-btn');
+            const autosaveNotification = document.getElementById('autosave-notification');
+            const restoreAutosaveBtn = document.getElementById('restore-autosave');
+            const dismissAutosaveBtn = document.getElementById('dismiss-autosave');
 
             // --- State ---
             let frames = [];
@@ -368,12 +378,60 @@
             let lastFrameTime = 0;
             let uploadedBackgroundImage = null;
             let lassoPoints = [];
+            let autosaveTimeout;
+
             
             const paletteColors = [
                 '#ffffff', '#c2c2c2', '#898989', '#505050', '#000000',
                 '#ff5b5b', '#ff985b', '#ffff5b', '#98ff5b', '#5bff98',
                 '#5bffff', '#5b98ff', '#985bff', '#ff5b98', '#ff5bff'
             ];
+
+            // --- Autosave ---
+            function triggerAutosave() {
+                clearTimeout(autosaveTimeout);
+                autosaveTimeout = setTimeout(autosaveProject, 2000);
+            }
+
+            function autosaveProject() {
+                 const projectData = {
+                    frames: frames.map(f => f.current),
+                    drawnBackground: backgroundData.current,
+                    uploadedImage: uploadedBackgroundImage ? uploadedBackgroundImage.src : null,
+                };
+                localStorage.setItem('autosavedAnimationProject', JSON.stringify(projectData));
+            }
+
+            function loadProjectData(projectData) {
+                if (!projectData.frames) throw new Error('Invalid project file');
+                
+                frames = projectData.frames.map(frameDataURL => ({
+                    current: frameDataURL, undoStack: [], redoStack: [],
+                }));
+
+                backgroundData = {
+                    current: projectData.drawnBackground || drawingBgCanvas.toDataURL(),
+                    undoStack: [], redoStack: []
+                };
+
+                currentFrameIndex = 0;
+
+                const loadVisuals = () => {
+                    renderTimeline();
+                    redrawAll();
+                    updateUndoRedoButtons();
+                    updateTimelineInfo();
+                };
+                
+                if (projectData.uploadedImage) {
+                    const img = new Image();
+                    img.onload = () => { uploadedBackgroundImage = img; loadVisuals(); };
+                    img.src = projectData.uploadedImage;
+                } else {
+                    uploadedBackgroundImage = null; loadVisuals();
+                }
+            }
+
 
             // --- Canvas Setup ---
             function resizeCanvas() {
@@ -412,6 +470,7 @@
                     history.undoStack.shift();
                 }
                 updateUndoRedoButtons();
+                triggerAutosave();
             }
             
             function undo() {
@@ -432,6 +491,7 @@
                 };
                 img.src = history.current;
                 updateUndoRedoButtons();
+                triggerAutosave();
             }
 
             function redo() {
@@ -452,6 +512,7 @@
                 };
                 img.src = history.current;
                 updateUndoRedoButtons();
+                triggerAutosave();
             }
 
             function updateUndoRedoButtons() {
@@ -550,6 +611,7 @@
                 } else {
                     saveBackground();
                 }
+                triggerAutosave();
             }
             
             // --- Shape Drawing Logic ---
@@ -635,7 +697,7 @@
             }
 
             // --- Project Save/Load ---
-            function saveProject() {
+            function saveProjectToFile() {
                 const projectData = {
                     frames: frames.map(f => f.current),
                     drawnBackground: backgroundData.current,
@@ -651,40 +713,14 @@
                 URL.revokeObjectURL(url);
             }
 
-            function loadProject(e) {
+            function loadProjectFromFile(e) {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     try {
                         const projectData = JSON.parse(event.target.result);
-                        if (!projectData.frames) throw new Error('Invalid project file');
-                        
-                        frames = projectData.frames.map(frameDataURL => ({
-                            current: frameDataURL, undoStack: [], redoStack: [],
-                        }));
-
-                        backgroundData = {
-                            current: projectData.drawnBackground || drawingBgCanvas.toDataURL(),
-                            undoStack: [], redoStack: []
-                        };
-
-                        currentFrameIndex = 0;
-
-                        const loadVisuals = () => {
-                            renderTimeline();
-                            redrawAll();
-                            updateUndoRedoButtons();
-                            updateTimelineInfo();
-                        };
-                        
-                        if (projectData.uploadedImage) {
-                            const img = new Image();
-                            img.onload = () => { uploadedBackgroundImage = img; loadVisuals(); };
-                            img.src = projectData.uploadedImage;
-                        } else {
-                            uploadedBackgroundImage = null; loadVisuals();
-                        }
+                        loadProjectData(projectData);
                     } catch (error) {
                         console.error("Error loading project:", error);
                         alert('Could not load project file.');
@@ -808,6 +844,7 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
+                triggerAutosave();
             }
             
             function deleteFrame(index) {
@@ -819,6 +856,7 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
+                triggerAutosave();
             }
 
             function copyFrame(index) {
@@ -835,6 +873,7 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
+                triggerAutosave();
             }
 
             // --- Animation Playback ---
@@ -931,7 +970,7 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground(); };
+                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground(); triggerAutosave();};
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
@@ -945,6 +984,7 @@
                 blankBg.width = animationCanvas.width; blankBg.height = animationCanvas.height;
                 backgroundData.current = blankBg.toDataURL();
                 loadBackground();
+                triggerAutosave();
              }
 
              // --- Onion Skinning ---
@@ -1051,8 +1091,8 @@
             window.addEventListener('resize', resizeCanvas);
             closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
             showInstructionsBtn.addEventListener('click', () => instructionsModal.classList.remove('hidden'));
-            saveProjectBtn.addEventListener('click', saveProject);
-            loadProjectInput.addEventListener('change', loadProject);
+            saveProjectBtn.addEventListener('click', saveProjectToFile);
+            loadProjectInput.addEventListener('change', loadProjectFromFile);
             bgUploadInput.addEventListener('change', handleBackgroundUpload);
             clearBgBtn.addEventListener('click', clearBackground);
             onionSkinCheckbox.addEventListener('change', renderOnionSkins);
@@ -1060,19 +1100,52 @@
                  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
             });
 
+            restoreAutosaveBtn.addEventListener('click', () => {
+                const savedData = localStorage.getItem('autosavedAnimationProject');
+                if (savedData) {
+                    try {
+                        const projectData = JSON.parse(savedData);
+                        loadProjectData(projectData);
+                    } catch (e) {
+                        console.error("Could not parse autosaved data.", e);
+                    }
+                }
+                autosaveNotification.classList.add('hidden');
+            });
+
+            dismissAutosaveBtn.addEventListener('click', () => {
+                localStorage.removeItem('autosavedAnimationProject');
+                autosaveNotification.classList.add('hidden');
+            });
+
 
             // --- Initialization ---
             function initialize() {
                 playPauseMobileBtn.innerHTML = playIcon.outerHTML; // Set initial mobile icon
                 renderColorPalette();
+                const savedData = localStorage.getItem('autosavedAnimationProject');
+
+                if (savedData) {
+                    autosaveNotification.classList.remove('hidden');
+                    initializeNewProject();
+                } else {
+                    initializeNewProject();
+                }
+                 if (!localStorage.getItem('animationToolInstructionsSeen')) {
+                    instructionsModal.classList.remove('hidden');
+                    localStorage.setItem('animationToolInstructionsSeen', 'true');
+                }
+            }
+            
+            function initializeNewProject() {
                 const blankCanvas = document.createElement('canvas');
                 blankCanvas.width = 1280; blankCanvas.height = 720;
                 
-                frames.push({
+                frames = [{
                     current: blankCanvas.toDataURL(),
                     undoStack: [],
                     redoStack: []
-                });
+                }];
                 
                 backgroundData.current = blankCanvas.toDataURL();
                 
@@ -1083,15 +1156,13 @@
                 updateTimelineThumbnail(0);
                 updateUndoRedoButtons();
                 updateTimelineInfo();
-
-                 if (!localStorage.getItem('animationToolInstructionsSeen')) {
-                    instructionsModal.classList.remove('hidden');
-                    localStorage.setItem('animationToolInstructionsSeen', 'true');
-                }
             }
+
             initialize();
         });
     </script>
 </body>
 </html>
+
+
 
