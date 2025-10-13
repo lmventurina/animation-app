@@ -68,7 +68,6 @@
         }
         #onion-skin-canvas-behind,
         #onion-skin-canvas-ahead,
-        #selection-canvas,
         #preview-canvas { /* preview canvas for shapes */
             pointer-events: none;
         }
@@ -81,6 +80,17 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        
+        .color-swatch {
+            transition: transform 0.1s ease-in-out;
+        }
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+        .color-swatch.active {
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #4f46e5;
+        }
+
     </style>
 </head>
 <body class="bg-slate-900 text-gray-300 flex flex-col h-screen overflow-hidden">
@@ -88,6 +98,20 @@
     <!-- Header -->
     <header class="bg-slate-800 shadow-md p-3 flex justify-between items-center z-20 border-b border-slate-700 flex-shrink-0">
         <h1 class="text-lg md:text-xl font-bold text-white whitespace-nowrap">Web Animation Tool</h1>
+        
+        <!-- Playback Controls -->
+        <div class="hidden md:flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
+             <button id="play-pause" class="bg-green-600 hover:bg-green-500 text-white font-bold rounded-full h-10 w-10 flex items-center justify-center">
+                <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-pause-fill hidden" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+            </button>
+            <div class="flex items-center gap-2">
+                <label for="fps-slider" class="text-sm font-medium">FPS:</label>
+                <input type="range" id="fps-slider" min="1" max="30" value="12" class="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                <span id="fps-value" class="text-sm font-semibold w-6 text-center">12</span>
+            </div>
+        </div>
+
         <div class="flex items-center gap-2 md:gap-4">
             <button id="show-instructions" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-3 md:px-4 rounded-lg text-sm">Help</button>
             <button id="save-project" class="bg-green-600 hover:bg-green-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
@@ -101,7 +125,7 @@
             <input type="file" id="load-project-input" class="hidden" accept=".anim">
              <button id="export-gif" class="bg-purple-600 hover:bg-purple-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-                <span class="hidden md:inline">Export GIF</span>
+                <span class="hidden md:inline">Export</span>
             </button>
         </div>
     </header>
@@ -109,10 +133,10 @@
     <!-- Main Content -->
     <div class="flex flex-col md:flex-row flex-grow overflow-hidden">
         <!-- Toolbar -->
-        <aside class="w-full md:w-64 bg-slate-800 p-4 flex-shrink-0 flex flex-col gap-4 overflow-y-auto z-10 border-b md:border-b-0 md:border-r border-slate-700">
+        <aside class="w-full md:w-56 bg-slate-800 p-3 flex-shrink-0 flex flex-col gap-3 overflow-y-auto z-10 border-b md:border-b-0 md:border-r border-slate-700">
             <!-- Layers -->
             <div>
-                <h3 class="text-sm font-semibold mb-1 text-gray-400">Layer</h3>
+                <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Layer</h3>
                  <div class="grid grid-cols-2 gap-2">
                     <button id="animation-layer-btn" class="layer-button active bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Animation</button>
                     <button id="background-layer-btn" class="layer-button bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Background</button>
@@ -121,8 +145,8 @@
             
             <!-- Tools -->
             <div>
-                <h3 class="text-sm font-semibold mb-1 text-gray-400">Tool</h3>
-                <div id="tools-container" class="grid grid-cols-3 gap-2">
+                <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Tool</h3>
+                <div id="tools-container" class="grid grid-cols-4 gap-2">
                     <button data-tool="pencil" class="tool-button active p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pencil">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
                     </button>
@@ -143,29 +167,24 @@
                     <button data-tool="circle" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Circle">
                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                </div>
-            </div>
-             <!-- History -->
-            <div>
-                <h3 class="text-sm font-semibold mb-1 text-gray-400">History</h3>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="undo-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center" title="Undo (Ctrl+Z)">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                    <button id="undo-btn" class="p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Undo (Ctrl+Z)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
                           <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
                           <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
                         </svg>
                     </button>
-                    <button id="redo-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center" title="Redo (Ctrl+Y)">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                    <button id="redo-btn" class="p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Redo (Ctrl+Y)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
                           <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
                           <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966a.25.25 0 0 1 0 .384l-2.36 1.966A.25.25 0 0 1 8 4.466z"/>
                         </svg>
                     </button>
                 </div>
             </div>
+             
             <!-- Brush Size -->
             <div>
-                <label for="brush-size" class="text-sm font-semibold text-gray-400">Brush Size</label>
+                <label for="brush-size" class="text-xs font-semibold text-gray-400 uppercase">Brush Size</label>
                 <div class="flex items-center gap-2 mt-2">
                     <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
                     <span id="brush-size-value" class="text-sm font-semibold w-6 text-center">5</span>
@@ -173,8 +192,13 @@
             </div>
             <!-- Color -->
             <div>
-                <label for="color-picker" class="text-sm font-semibold mb-1 text-gray-400">Color</label>
-                <input type="color" id="color-picker" value="#000000" class="w-full h-10 rounded-lg cursor-pointer border-2 border-slate-600 mt-2">
+                <label for="color-picker" class="text-xs font-semibold mb-1 text-gray-400 uppercase">Color</label>
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="color" id="color-picker" value="#000000" class="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-600">
+                    <div id="color-palette" class="grid grid-cols-5 gap-1 flex-1">
+                        <!-- Color swatches will be inserted here -->
+                    </div>
+                </div>
             </div>
             <!-- Onion Skin -->
             <div>
@@ -185,27 +209,25 @@
             </div>
             <!-- Background Options -->
             <div>
-                <h3 class="text-sm font-semibold mb-1 text-gray-400">Background Options</h3>
+                <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Background Options</h3>
                 <div class="flex flex-col gap-2">
                     <label for="bg-upload-input" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm text-center cursor-pointer">Upload Image</label>
                     <input type="file" id="bg-upload-input" class="hidden" accept="image/*">
                     <button id="clear-bg-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Clear Background</button>
                 </div>
             </div>
-             <!-- Playback -->
-             <div>
-                <h3 class="text-sm font-semibold mb-1 text-gray-400">Playback</h3>
+             <!-- Playback for Mobile -->
+             <div class="md:hidden">
+                <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Playback</h3>
                 <div class="flex items-center justify-center gap-4 mt-2">
-                    <button id="play-pause" class="bg-green-600 hover:bg-green-500 text-white font-bold rounded-full h-10 w-10 flex items-center justify-center">
-                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
-                        <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-pause-fill hidden" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
-                        <span id="play-text" class="sr-only">Play</span>
+                    <button id="play-pause-mobile" class="bg-green-600 hover:bg-green-500 text-white font-bold rounded-full h-10 w-10 flex items-center justify-center">
+                         <!-- Icons will be cloned here by JS -->
                     </button>
                 </div>
-                 <div class="flex items-center gap-2 mt-4">
-                    <label for="fps-slider" class="text-sm font-medium">FPS:</label>
-                    <input type="range" id="fps-slider" min="1" max="30" value="12" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
-                    <span id="fps-value" class="text-sm font-semibold w-6 text-center">12</span>
+                 <div class="flex items-center gap-2 mt-2">
+                    <label for="fps-slider-mobile" class="text-sm font-medium">FPS:</label>
+                    <input type="range" id="fps-slider-mobile" min="1" max="30" value="12" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    <span id="fps-value-mobile" class="text-sm font-semibold w-6 text-center">12</span>
                 </div>
             </div>
         </aside>
@@ -294,16 +316,23 @@
             const undoBtn = document.getElementById('undo-btn');
             const redoBtn = document.getElementById('redo-btn');
             const colorPicker = document.getElementById('color-picker');
+            const colorPalette = document.getElementById('color-palette');
             const brushSizeSlider = document.getElementById('brush-size');
             const brushSizeValue = document.getElementById('brush-size-value');
             const onionSkinCheckbox = document.getElementById('onion-skin');
             const addFrameBtn = document.getElementById('add-frame');
             const timeline = document.getElementById('timeline');
+            // Desktop Playback
             const playPauseBtn = document.getElementById('play-pause');
             const playIcon = document.getElementById('play-icon');
             const pauseIcon = document.getElementById('pause-icon');
             const fpsSlider = document.getElementById('fps-slider');
             const fpsValue = document.getElementById('fps-value');
+            // Mobile Playback
+            const playPauseMobileBtn = document.getElementById('play-pause-mobile');
+            const fpsSliderMobile = document.getElementById('fps-slider-mobile');
+            const fpsValueMobile = document.getElementById('fps-value-mobile');
+
             const exportGifBtn = document.getElementById('export-gif');
             const loadingModal = document.getElementById('loading-modal');
             const instructionsModal = document.getElementById('instructions-modal');
@@ -331,6 +360,12 @@
             let lastFrameTime = 0;
             let uploadedBackgroundImage = null;
             let lassoPoints = [];
+            
+            const paletteColors = [
+                '#ffffff', '#c2c2c2', '#898989', '#505050', '#000000',
+                '#ff5b5b', '#ff985b', '#ffff5b', '#98ff5b', '#5bff98',
+                '#5bffff', '#5b98ff', '#985bff', '#ff5b98', '#ff5bff'
+            ];
 
             // --- Canvas Setup ---
             function resizeCanvas() {
@@ -792,22 +827,28 @@
             // --- Animation Playback ---
             function playAnimation() {
                 if (isPlaying) return; isPlaying = true;
-                playIcon.classList.add('hidden'); pauseIcon.classList.remove('hidden');
+                playIcon.classList.add('hidden');
+                document.getElementById('pause-icon').classList.remove('hidden');
+                playPauseMobileBtn.innerHTML = pauseIcon.outerHTML;
+
                 lastFrameTime = performance.now();
                 animationLoop();
             }
 
             function pauseAnimation() {
                 isPlaying = false;
-                playIcon.classList.remove('hidden'); pauseIcon.classList.add('hidden');
+                playIcon.classList.remove('hidden');
+                document.getElementById('pause-icon').classList.add('hidden');
+                 playPauseMobileBtn.innerHTML = playIcon.outerHTML;
                 cancelAnimationFrame(animationFrameId);
             }
             
             function animationLoop(currentTime) {
                 if (!isPlaying) return;
                 animationFrameId = requestAnimationFrame(animationLoop);
+                const fps = fpsSlider.value;
                 const timeSinceLastFrame = currentTime - lastFrameTime;
-                const frameInterval = 1000 / fpsSlider.value;
+                const frameInterval = 1000 / fps;
                 if (timeSinceLastFrame > frameInterval) {
                     lastFrameTime = currentTime - (timeSinceLastFrame % frameInterval);
                     currentFrameIndex = (currentFrameIndex + 1) % frames.length;
@@ -905,6 +946,22 @@
                 drawSkin(onionBehindCtx, currentFrameIndex - 1);
                 drawSkin(onionAheadCtx, currentFrameIndex + 1);
             }
+            
+             // --- Color Palette ---
+            function renderColorPalette() {
+                paletteColors.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch w-6 h-6 rounded-full cursor-pointer border-2 border-slate-600';
+                    swatch.style.backgroundColor = color;
+                    swatch.addEventListener('click', () => {
+                        colorPicker.value = color;
+                        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                        swatch.classList.add('active');
+                    });
+                    colorPalette.appendChild(swatch);
+                });
+            }
+
 
             // --- Event Listeners ---
             animationCanvas.addEventListener('mousedown', startDrawing);
@@ -950,8 +1007,23 @@
 
             brushSizeSlider.addEventListener('input', () => { brushSizeValue.textContent = brushSizeSlider.value; });
             addFrameBtn.addEventListener('click', addNewFrame);
+
+            // Sync playback controls
             playPauseBtn.addEventListener('click', () => { isPlaying ? pauseAnimation() : playAnimation(); });
-            fpsSlider.addEventListener('input', () => { fpsValue.textContent = fpsSlider.value; });
+            playPauseMobileBtn.addEventListener('click', () => { isPlaying ? pauseAnimation() : playAnimation(); });
+            fpsSlider.addEventListener('input', () => { 
+                const val = fpsSlider.value;
+                fpsValue.textContent = val;
+                fpsSliderMobile.value = val;
+                fpsValueMobile.textContent = val;
+            });
+             fpsSliderMobile.addEventListener('input', () => { 
+                const val = fpsSliderMobile.value;
+                fpsValueMobile.textContent = val;
+                fpsSlider.value = val;
+                fpsValue.textContent = val;
+            });
+
             exportGifBtn.addEventListener('click', exportToGif);
             window.addEventListener('resize', resizeCanvas);
             closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
@@ -961,9 +1033,15 @@
             bgUploadInput.addEventListener('change', handleBackgroundUpload);
             clearBgBtn.addEventListener('click', clearBackground);
             onionSkinCheckbox.addEventListener('change', renderOnionSkins);
+            colorPicker.addEventListener('input', () => {
+                 document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            });
+
 
             // --- Initialization ---
             function initialize() {
+                playPauseMobileBtn.innerHTML = playIcon.outerHTML; // Set initial mobile icon
+                renderColorPalette();
                 const blankCanvas = document.createElement('canvas');
                 blankCanvas.width = 1280; blankCanvas.height = 720;
                 
@@ -992,3 +1070,4 @@
     </script>
 </body>
 </html>
+
