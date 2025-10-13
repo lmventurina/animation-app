@@ -3,318 +3,385 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Animation Tool</title>
+    <title>Web Animation Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
         }
         .timeline-frame {
             border: 2px solid transparent;
+            transition: all 0.2s ease-in-out;
         }
         .timeline-frame.active {
-            border-color: #3b82f6; /* blue-500 */
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            border-color: #4f46e5; /* indigo-600 */
+            box-shadow: 0 0 10px rgba(79, 70, 229, 0.7);
         }
-        #canvas {
-            cursor: crosshair;
-            border-radius: 0.5rem;
-            touch-action: none; /* Prevents page scroll on touch devices */
+        .tool-button.active {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            border-color: #6366f1; /* indigo-500 */
+        }
+        .loader {
+            border: 4px solid #4b5563; /* gray-600 */
+            border-radius: 50%;
+            border-top: 4px solid #4f46e5; /* indigo-600 */
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom scrollbar for timeline */
+        .timeline-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .timeline-container::-webkit-scrollbar-track {
+            background: #1f2937; /* gray-800 */
+        }
+        .timeline-container::-webkit-scrollbar-thumb {
+            background: #4b5563; /* gray-600 */
+            border-radius: 4px;
+        }
+        .timeline-container::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* gray-500 */
+        }
+        /* Canvas Layering */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            max-width: 100%;
         }
         .base-canvas {
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             border-radius: 0.5rem;
+            touch-action: none;
+        }
+        #onion-skin-canvas-behind,
+        #onion-skin-canvas-ahead,
+        #selection-canvas {
+            pointer-events: none;
         }
         #bg-canvas {
             background-color: white;
         }
-        .onion-skin-canvas {
-            pointer-events: none;
-        }
-        #selection-canvas {
-            pointer-events: none; /* See through for drawing lasso */
-        }
-        .modal {
-            display: none;
-        }
     </style>
 </head>
-<body class="bg-gray-800 text-white flex flex-col items-center justify-start min-h-screen p-4">
+<body class="bg-slate-900 text-gray-300 flex flex-col h-screen overflow-hidden">
 
-    <div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-4">
+    <!-- Header -->
+    <header class="bg-slate-800 shadow-md p-3 flex justify-between items-center z-20 border-b border-slate-700 flex-shrink-0">
+        <h1 class="text-lg md:text-xl font-bold text-white whitespace-nowrap">Web Animation Tool</h1>
+        <div class="flex items-center gap-2 md:gap-4">
+            <button id="show-instructions" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-3 md:px-4 rounded-lg text-sm">Help</button>
+            <button id="save-project" class="bg-green-600 hover:bg-green-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-save" viewBox="0 0 16 16"><path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v4.5h2a.5.5 0 0 1 .354.854l-2.5 2.5a.5.5 0 0 1-.708 0l-2.5-2.5A.5.5 0 0 1 5.5 6.5h2V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1H2z"/></svg>
+                <span class="hidden md:inline">Save</span>
+            </button>
+            <label for="load-project-input" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2 cursor-pointer">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder2-open" viewBox="0 0 16 16"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.746 1.97.684l.248-.06c.26-.06.58.11.732.358L8.5 3.5h5.5A1.5 1.5 0 0 1 15.5 5v.54L14.05 8.4a.5.5 0 0 1-.45.3H5.4a.5.5 0 0 1-.45-.3L3.5 5.54V5.5A1.5 1.5 0 0 1 2 4H1.5V3.5zM2 6h12v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/><path d="M.5 4a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1H.5z"/></svg>
+                <span class="hidden md:inline">Load</span>
+            </label>
+            <input type="file" id="load-project-input" class="hidden" accept=".anim">
+             <button id="export-gif" class="bg-purple-600 hover:bg-purple-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                <span class="hidden md:inline">Export GIF</span>
+            </button>
+        </div>
+    </header>
 
-        <!-- Left Panel: Tools and Controls -->
-        <div class="lg:w-1/5 bg-gray-700 p-4 rounded-lg shadow-lg flex flex-col gap-4">
-            <h1 class="text-xl font-bold text-center border-b border-gray-600 pb-2">Animation Tools</h1>
-
-            <!-- Project Controls -->
-            <div class="border-b border-gray-600 pb-4">
-                <h2 class="text-lg font-semibold mb-2">Project</h2>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="save-btn" class="bg-green-600 hover:bg-green-700 p-2 rounded-lg">Save</button>
-                    <label for="load-project-input" class="bg-blue-600 hover:bg-blue-700 p-2 rounded-lg text-center cursor-pointer">Load</label>
-                    <input type="file" id="load-project-input" accept=".anim" class="hidden">
-                </div>
-            </div>
-
-            <!-- Tool Selection -->
+    <!-- Main Content -->
+    <div class="flex flex-col md:flex-row flex-grow overflow-hidden">
+        <!-- Toolbar -->
+        <aside class="w-full md:w-64 bg-slate-800 p-4 flex-shrink-0 flex flex-col gap-6 overflow-y-auto z-10 border-b md:border-b-0 md:border-r border-slate-700">
+            <!-- Tools -->
             <div>
-                <h2 class="text-lg font-semibold mb-2">Tool</h2>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">Tool</h3>
                 <div class="grid grid-cols-3 gap-2">
-                    <button id="pen-tool" title="Pen" class="bg-blue-500 hover:bg-blue-600 p-2 rounded-lg flex justify-center items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
+                    <button id="pencil-tool" class="tool-button active p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pencil">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-pencil-fill" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
                     </button>
-                    <button id="eraser-tool" title="Eraser" class="bg-gray-500 hover:bg-gray-600 p-2 rounded-lg flex justify-center items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828l6.879-6.879zm2.121.707a1 1 0 0 0-1.414 0L4.16 7.547l5.293 5.293 4.633-4.633a1 1 0 0 0 0-1.414l-3.879-3.879zM8.746 13.547 3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293l.16-.16z"/>
-                        </svg>
+                    <button id="eraser-tool" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Eraser">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-eraser-fill" viewBox="0 0 16 16"><path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828l6.879-6.879zm.66 11.34L3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293l.16-.16z"/></svg>
                     </button>
-                    <button id="lasso-tool" title="Lasso Delete" class="bg-gray-500 hover:bg-gray-600 p-2 rounded-lg flex justify-center items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    <button id="lasso-tool" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Lasso Erase">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6">
+                            <path d="M4.23223 15.7678C1.20573 12.7413 1.20573 7.75868 4.23223 4.73223C7.25873 1.70573 12.2413 1.70573 15.2678 4.73223C18.2943 7.75868 18.2943 12.7413 15.2678 15.7678L12.5 18.5L9.5 21.5L4.23223 15.7678Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 4"/>
                         </svg>
                     </button>
                 </div>
             </div>
-
             <!-- Brush Size -->
             <div>
-                <label for="brush-size" class="block text-lg font-semibold mb-2">Brush Size</label>
-                <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
+                <label for="brush-size" class="text-sm font-semibold text-gray-400">Brush Size</label>
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    <span id="brush-size-value" class="text-sm font-semibold w-6 text-center">5</span>
+                </div>
             </div>
-
-            <!-- Color Picker -->
+            <!-- Color -->
             <div>
-                <label for="color-picker" class="block text-lg font-semibold mb-2">Color</label>
-                <input type="color" id="color-picker" value="#000000" class="w-full h-10 p-1 bg-gray-600 rounded-lg cursor-pointer">
+                <label for="color-picker" class="text-sm font-semibold mb-2 text-gray-400">Color</label>
+                <input type="color" id="color-picker" value="#000000" class="w-full h-10 rounded-lg cursor-pointer border-2 border-slate-600 mt-2">
             </div>
-            
             <!-- Onion Skin -->
-            <div class="relative flex items-center">
-                 <input type="checkbox" id="onion-skin" class="h-4 w-4 rounded">
-                 <label for="onion-skin" class="ml-2 text-lg font-semibold">Onion Skin</label>
+            <div>
+                <label for="onion-skin" class="flex items-center cursor-pointer select-none">
+                    <input type="checkbox" id="onion-skin" class="h-4 w-4 rounded border-gray-500 text-indigo-500 focus:ring-indigo-600 bg-slate-700">
+                    <span class="ml-2 text-sm font-medium">Onion Skin</span>
+                </label>
             </div>
-
-            <!-- Background Controls -->
-            <div class="border-t border-gray-600 pt-4">
-                <h2 class="text-lg font-semibold mb-2">Background</h2>
-                <div class="flex items-center gap-2">
-                   <input type="color" id="bg-color-picker" value="#FFFFFF" class="w-1/4 h-10 p-1 bg-gray-600 rounded-lg cursor-pointer">
-                   <label for="bg-image-input" class="flex-1 text-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded cursor-pointer block">Upload Image</label>
+            <!-- Background -->
+            <div>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">Background</h3>
+                <div class="flex flex-col gap-2">
+                    <label for="bg-upload-input" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm text-center cursor-pointer">Upload Image</label>
+                    <input type="file" id="bg-upload-input" class="hidden" accept="image/*">
+                    <button id="clear-bg-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Clear Background</button>
                 </div>
-                <input type="file" id="bg-image-input" accept="image/*" class="hidden">
-                <button id="clear-bg-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mt-2">Clear Background</button>
             </div>
-
-            <!-- Playback Controls -->
-            <div class="mt-auto border-t border-gray-600 pt-4">
-                 <h2 class="text-lg font-semibold mb-2 text-center">Playback</h2>
-                <div class="flex items-center justify-center gap-4 mb-2">
-                    <button id="play-pause" title="Play/Pause" class="bg-green-500 hover:bg-green-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </button>
-                    <button id="download-btn" title="Download Animation" class="bg-blue-500 hover:bg-blue-600 p-3 rounded-full w-12 h-12 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+             <!-- Playback -->
+             <div>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">Playback</h3>
+                <div class="flex items-center justify-center gap-4 mt-2">
+                    <button id="play-pause" class="bg-green-600 hover:bg-green-500 text-white font-bold rounded-full h-12 w-12 flex items-center justify-center">
+                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                        <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-pause-fill hidden" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+                        <span id="play-text" class="sr-only">Play</span>
                     </button>
                 </div>
-                 <p id="recording-status" class="text-center text-sm text-yellow-400 h-4"></p>
-                <label for="fps-slider" class="block text-center">FPS: <span id="fps-value">12</span></label>
-                <input type="range" id="fps-slider" min="1" max="24" value="12" class="w-full">
+                 <div class="flex items-center gap-2 mt-4">
+                    <label for="fps-slider" class="text-sm font-medium">FPS:</label>
+                    <input type="range" id="fps-slider" min="1" max="30" value="12" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    <span id="fps-value" class="text-sm font-semibold w-6 text-center">12</span>
+                </div>
             </div>
-        </div>
+        </aside>
 
-        <!-- Center Panel: Canvas -->
-        <div class="flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 rounded-lg shadow-lg relative min-h-[50vh]">
-            <div id="canvas-container" class="relative w-full aspect-video max-w-full">
+        <!-- Canvas -->
+        <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden">
+             <div class="canvas-container shadow-xl">
                 <canvas id="bg-canvas" class="base-canvas"></canvas>
-                <canvas id="onion-skin-canvas-behind" class="base-canvas onion-skin-canvas"></canvas>
-                <canvas id="canvas" class="base-canvas relative"></canvas>
-                <canvas id="onion-skin-canvas-ahead" class="base-canvas onion-skin-canvas"></canvas>
-                <canvas id="selection-canvas" class="base-canvas"></canvas> <!-- For lasso drawing -->
+                <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
+                <canvas id="canvas" class="base-canvas cursor-crosshair"></canvas>
+                <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
+                <canvas id="selection-canvas" class="base-canvas"></canvas>
             </div>
-        </div>
-        
+        </main>
     </div>
 
-    <!-- Bottom Panel: Timeline -->
-    <div class="w-full max-w-7xl mx-auto bg-gray-700 p-4 rounded-lg shadow-lg mt-4">
-        <h2 class="text-lg font-semibold mb-2 text-center">Timeline</h2>
-        <div id="timeline" class="flex items-center gap-2 overflow-x-auto pb-4 h-full min-h-[120px]">
-            <!-- Timeline frames will be injected here -->
+    <!-- Timeline -->
+    <footer class="bg-slate-800 shadow-inner p-3 z-20 border-t border-slate-700 flex-shrink-0">
+        <h3 class="text-sm font-semibold mb-2 text-center text-gray-400">Timeline</h3>
+        <div class="w-full overflow-x-auto pb-2 timeline-container">
+            <div id="timeline" class="flex items-center gap-2 p-2 bg-slate-700 rounded-lg h-28">
+                 <button id="add-frame" class="flex-shrink-0 bg-slate-600 hover:bg-slate-500 text-gray-300 font-bold h-24 w-40 rounded-lg flex flex-col items-center justify-center text-center p-2" title="Add New Frame">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/></svg>
+                    <span class="text-xs mt-1">Add Frame</span>
+                 </button>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- GIF Export library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
+    <!-- Modal for loading spinner -->
+    <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+        <div class="bg-slate-800 p-8 rounded-lg shadow-xl text-center border border-slate-700">
+            <div class="loader mx-auto"></div>
+            <p class="mt-4 text-lg font-medium text-white">Generating GIF...</p>
         </div>
     </div>
-    
-    <!-- Help Modal -->
-    <button id="help-button" class="fixed bottom-4 right-4 bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-blue-600 z-10">?</button>
-    <div id="help-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-20">
-        <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
-            <h2 class="text-2xl font-bold mb-4">How to Use the Animation Tool</h2>
-            <p class="mb-2">1. <strong>Save/Load Project:</strong> Use the 'Save' and 'Load' buttons to save your progress as a `.anim` file and open it later.</p>
-            <p class="mb-2">2. <strong>Draw & Erase:</strong> Use the Pen and Eraser tools to draw on the canvas.</p>
-            <p class="mb-2">3. <strong>Lasso Delete:</strong> Use the Lasso tool to draw a selection around a large area. When you release the mouse, everything inside the selection will be deleted.</p>
-            <p class="mb-2">4. <strong>Add & Duplicate Frames:</strong> Use the '+' button in the timeline to add a new frame. Use the copy icon on a frame to duplicate it.</p>
-            <p class="mb-2">5. <strong>Background:</strong> Use the color picker for a solid color or 'Upload Image' for a picture background.</p>
-            <p class="mb-2">6. <strong>Onion Skin:</strong> Check this box to see faint outlines of your previous and next drawings.</p>
-            <p class="mb-2">7. <strong>Play & Download:</strong> Use the play button to preview your animation and the download button to save it as a `.webm` video file.</p>
-            <button id="close-help" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Got it!</button>
+
+    <!-- Instructions Modal -->
+    <div id="instructions-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
+            <h2 class="text-2xl font-bold mb-6 text-center">How to Use the Animation Tool</h2>
+            <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                <li><b>Save/Load Project:</b> Use the 'Save' and 'Load' buttons to save your progress as a <code>.anim</code> file and open it again later.</li>
+                <li><b>Draw & Erase:</b> Use the <span class="text-indigo-400">Pencil</span> and <span class="text-red-400">Eraser</span> tools on the left. Adjust color and brush size below them.</li>
+                <li><b>Lasso Erase:</b> Use the Lasso tool to draw a selection. When you release the mouse, everything inside the selection will be erased.</li>
+                <li><b>Background:</b> Use the 'Upload Image' button to add a picture background. Use 'Clear Background' to remove it.</li>
+                <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
+                <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
+                <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
+                <li><b>Export GIF:</b> When you're finished, use the 'Export GIF' button to save your animation as a downloadable .gif file.</li>
+            </ol>
+            <div class="mt-8 text-center">
+                <button id="close-instructions-modal" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-8 rounded-lg">Got it!</button>
+            </div>
         </div>
     </div>
 
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const canvas = document.getElementById('canvas');
+            const canvasContainer = document.querySelector('.canvas-container');
             const bgCanvas = document.getElementById('bg-canvas');
             const onionBehindCanvas = document.getElementById('onion-skin-canvas-behind');
+            const canvas = document.getElementById('canvas');
             const onionAheadCanvas = document.getElementById('onion-skin-canvas-ahead');
             const selectionCanvas = document.getElementById('selection-canvas');
-            const canvasContainer = document.getElementById('canvas-container');
 
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             const bgCtx = bgCanvas.getContext('2d');
             const onionBehindCtx = onionBehindCanvas.getContext('2d');
             const onionAheadCtx = onionAheadCanvas.getContext('2d');
             const selectionCtx = selectionCanvas.getContext('2d');
-            
-            const brushSizeSlider = document.getElementById('brush-size');
-            const colorPicker = document.getElementById('color-picker');
-            const penTool = document.getElementById('pen-tool');
+
+            // --- DOM Elements ---
+            const pencilTool = document.getElementById('pencil-tool');
             const eraserTool = document.getElementById('eraser-tool');
             const lassoTool = document.getElementById('lasso-tool');
+            const colorPicker = document.getElementById('color-picker');
+            const brushSizeSlider = document.getElementById('brush-size');
+            const brushSizeValue = document.getElementById('brush-size-value');
+            const onionSkinCheckbox = document.getElementById('onion-skin');
+            const addFrameBtn = document.getElementById('add-frame');
             const timeline = document.getElementById('timeline');
             const playPauseBtn = document.getElementById('play-pause');
-            const downloadBtn = document.getElementById('download-btn');
-            const recordingStatus = document.getElementById('recording-status');
+            const playIcon = document.getElementById('play-icon');
+            const pauseIcon = document.getElementById('pause-icon');
             const fpsSlider = document.getElementById('fps-slider');
             const fpsValue = document.getElementById('fps-value');
-            const onionSkinCheckbox = document.getElementById('onion-skin');
-            const bgImageInput = document.getElementById('bg-image-input');
-            const clearBgBtn = document.getElementById('clear-bg-btn');
-            const bgColorPicker = document.getElementById('bg-color-picker');
-
-            const saveBtn = document.getElementById('save-btn');
+            const exportGifBtn = document.getElementById('export-gif');
+            const loadingModal = document.getElementById('loading-modal');
+            const instructionsModal = document.getElementById('instructions-modal');
+            const closeInstructionsModalBtn = document.getElementById('close-instructions-modal');
+            const showInstructionsBtn = document.getElementById('show-instructions');
+            const saveProjectBtn = document.getElementById('save-project');
             const loadProjectInput = document.getElementById('load-project-input');
-            
-            const helpButton = document.getElementById('help-button');
-            const helpModal = document.getElementById('help-modal');
-            const closeHelpButton = document.getElementById('close-help');
+            const bgUploadInput = document.getElementById('bg-upload-input');
+            const clearBgBtn = document.getElementById('clear-bg-btn');
 
-            let isDrawing = false;
-            let currentTool = 'pen';
+            // --- State ---
             let frames = [];
             let currentFrameIndex = 0;
+            let isDrawing = false;
+            let activeTool = 'pencil'; // 'pencil', 'eraser', 'lasso'
             let isPlaying = false;
-            let animationInterval;
-            let background = { color: '#FFFFFF', image: null };
+            let animationFrameId;
+            let lastFrameTime = 0;
+            let backgroundImage = null;
             let lassoPoints = [];
-            let isLassoing = false;
 
             // --- Canvas Setup ---
             function resizeCanvas() {
                 const { width, height } = canvasContainer.getBoundingClientRect();
-                canvas.width = bgCanvas.width = onionBehindCanvas.width = onionAheadCanvas.width = selectionCanvas.width = width;
-                canvas.height = bgCanvas.height = onionBehindCanvas.height = onionAheadCanvas.height = selectionCanvas.height = height;
+                [bgCanvas, onionBehindCanvas, canvas, onionAheadCanvas, selectionCanvas].forEach(c => {
+                    c.width = width;
+                    c.height = height;
+                });
                 drawBackground();
                 redrawAll();
             }
 
-            window.addEventListener('resize', resizeCanvas);
-
-            // --- Main Event Listeners ---
-            function handlePointerDown(e) {
-                if (e.target !== canvas) return;
-                e.preventDefault();
-                switch (currentTool) {
-                    case 'pen':
-                    case 'eraser':
-                        isDrawing = true;
-                        const { x, y } = getPointerPos(e);
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        break;
-                    case 'lasso':
-                        isLassoing = true;
-                        lassoPoints = [];
-                        selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-                        const startPoint = getPointerPos(e);
-                        lassoPoints.push(startPoint);
-                        break;
-                }
+             function redrawAll() {
+                loadFrame(currentFrameIndex);
+                renderOnionSkins();
+                frames.forEach((_, i) => updateTimelineThumbnail(i));
             }
 
-            function handlePointerMove(e) {
-                if (e.target !== canvas) return;
-                e.preventDefault();
-                if (isDrawing) {
-                    const { x, y } = getPointerPos(e);
-                    ctx.lineWidth = brushSizeSlider.value;
-                    ctx.lineCap = 'round';
-                    ctx.strokeStyle = currentTool === 'pen' ? colorPicker.value : 'rgba(0,0,0,1)';
-                    ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-                    ctx.lineTo(x, y);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                } else if (isLassoing) {
-                    const point = getPointerPos(e);
-                    lassoPoints.push(point);
-                    drawLassoSelection();
-                }
-            }
-            
-            function handlePointerUp() {
-                if (isDrawing) {
-                    isDrawing = false;
-                    ctx.beginPath();
-                    saveFrame();
-                    updateTimelineThumbnail(currentFrameIndex);
-                }
-                if (isLassoing) {
-                    isLassoing = false;
-                    applyLassoDelete();
-                    selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-                }
-            }
-
-            canvas.addEventListener('mousedown', handlePointerDown);
-            canvas.addEventListener('mousemove', handlePointerMove);
-            window.addEventListener('mouseup', handlePointerUp);
-
-            canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
-            canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
-            window.addEventListener('touchend', handlePointerUp);
-            
-            // --- Pointer Position ---
-            function getPointerPos(e) {
+            // --- Drawing Logic ---
+            function getMousePos(e) {
                 const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+
+                return {
+                    x: (clientX - rect.left),
+                    y: (clientY - rect.top)
+                };
             }
 
-            // --- Lasso Logic ---
-            function drawLassoSelection() {
-                selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+            function startDrawing(e) {
+                if (e.touches) e.preventDefault();
+                const pos = getMousePos(e);
+
+                if (activeTool === 'lasso') {
+                    isDrawing = true;
+                    lassoPoints = [pos];
+                    selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+                } else {
+                    isDrawing = true;
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    draw(e);
+                }
+            }
+            
+            function draw(e) {
+                if (!isDrawing) return;
+                if (e.touches) e.preventDefault();
+                const pos = getMousePos(e);
+                
+                if (activeTool === 'lasso') {
+                    lassoPoints.push(pos);
+                    drawLassoPath();
+                    return;
+                }
+
+                ctx.lineWidth = brushSizeSlider.value;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (activeTool === 'pencil') {
+                    ctx.strokeStyle = colorPicker.value;
+                    ctx.globalCompositeOperation = 'source-over';
+                } else if (activeTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                }
+                
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            }
+
+            function stopDrawing() {
+                if (!isDrawing) return;
+                 isDrawing = false;
+
+                if (activeTool === 'lasso') {
+                     if (lassoPoints.length > 2) {
+                        applyLassoDelete();
+                    }
+                    lassoPoints = [];
+                    selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+                } else {
+                     ctx.beginPath();
+                }
+                
+                saveFrame();
+            }
+
+             // --- Lasso Logic ---
+            function drawLassoPath() {
                 if (lassoPoints.length < 2) return;
-                selectionCtx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+                selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+                selectionCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
                 selectionCtx.lineWidth = 2;
-                selectionCtx.setLineDash([5, 5]);
+                selectionCtx.setLineDash([6, 6]);
                 selectionCtx.beginPath();
                 selectionCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
                 for (let i = 1; i < lassoPoints.length; i++) {
                     selectionCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
                 }
                 selectionCtx.stroke();
+                selectionCtx.setLineDash([]);
             }
 
             function applyLassoDelete() {
-                if (lassoPoints.length < 3) return;
                 ctx.save();
                 ctx.beginPath();
                 ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
@@ -325,84 +392,135 @@
                 ctx.clip();
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.restore();
-                saveFrame();
-                updateTimelineThumbnail(currentFrameIndex);
+            }
+
+            // --- Project Save/Load ---
+            function saveProject() {
+                const projectData = {
+                    frames: frames,
+                    backgroundImageSrc: backgroundImage ? backgroundImage.src : null,
+                };
+                const jsonString = JSON.stringify(projectData);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'animation-project.anim';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function loadProject(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const projectData = JSON.parse(event.target.result);
+                        if (!projectData.frames) throw new Error('Invalid project file');
+                        frames = projectData.frames;
+                        currentFrameIndex = 0;
+                        const loadAction = () => {
+                            renderTimeline();
+                            redrawAll();
+                        };
+                        if (projectData.backgroundImageSrc) {
+                            const img = new Image();
+                            img.onload = () => { backgroundImage = img; drawBackground(); loadAction(); };
+                            img.src = projectData.backgroundImageSrc;
+                        } else {
+                            backgroundImage = null; drawBackground(); loadAction();
+                        }
+                    } catch (error) {
+                        alert('Could not load project file.');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = null;
             }
 
             // --- Frame Management ---
-            function saveFrame() { frames[currentFrameIndex] = canvas.toDataURL(); }
+            function saveFrame() {
+                frames[currentFrameIndex] = canvas.toDataURL();
+                updateTimelineThumbnail(currentFrameIndex);
+            }
+
             function loadFrame(index) {
+                clearCanvas(ctx);
                 if (index < 0 || index >= frames.length) return;
                 const img = new Image();
-                img.onload = () => { clearCanvas(); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+                img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
                 img.src = frames[index];
             }
-            function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-            function redrawAll() {
-                 loadFrame(currentFrameIndex);
-                 renderOnionSkins();
-                 frames.forEach((_, i) => updateTimelineThumbnail(i));
+
+            function clearCanvas(context) {
+                context.clearRect(0, 0, context.canvas.width, context.canvas.height);
             }
 
-            // --- Timeline Logic ---
+            // --- Timeline UI ---
             function renderTimeline() {
-                timeline.innerHTML = '';
-                frames.forEach((_, index) => { timeline.appendChild(createTimelineFrame(index)); });
-                const addFrameBtn = document.createElement('button');
-                addFrameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-                addFrameBtn.className = 'bg-gray-600 hover:bg-gray-500 rounded-lg p-2 flex items-center justify-center flex-shrink-0';
-                addFrameBtn.onclick = addNewFrame;
-                timeline.appendChild(addFrameBtn);
-                updateActiveFrameHighlight();
+                const frameElements = timeline.querySelectorAll('.relative.flex-shrink-0.group');
+                frameElements.forEach(el => el.remove());
+                
+                frames.forEach((_, index) => {
+                    const frameContainer = createFrameElement(index);
+                    timeline.insertBefore(frameContainer, addFrameBtn);
+                });
+                frames.forEach((_, index) => { updateTimelineThumbnail(index); });
+                updateActiveFrame();
             }
-
-            function createTimelineFrame(index) {
+            
+            function createFrameElement(index) {
                 const frameContainer = document.createElement('div');
                 frameContainer.className = 'relative flex-shrink-0 group';
-                const frameDiv = document.createElement('div');
-                frameDiv.className = 'timeline-frame bg-white w-32 h-20 rounded-lg flex items-center justify-center text-gray-800 font-bold overflow-hidden cursor-pointer border-2 border-gray-600';
-                frameDiv.dataset.index = index;
-                const img = document.createElement('img');
-                img.className = 'w-full h-full object-contain';
-                img.id = `thumb-${index}`;
-                frameDiv.appendChild(img);
-                const frameNumber = document.createElement('span');
-                frameNumber.className = 'absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded';
-                frameNumber.textContent = index + 1;
-                frameDiv.onclick = () => {
+                const frameElement = document.createElement('canvas');
+                frameElement.className = 'timeline-frame h-24 w-40 bg-white rounded-lg cursor-pointer border-2 border-slate-600';
+                frameElement.dataset.index = index;
+                frameContainer.appendChild(frameElement);
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.className = 'absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center font-bold opacity-0 group-hover:opacity-100 transition-opacity';
+                deleteBtn.title = 'Delete Frame';
+                deleteBtn.onclick = (e) => { e.stopPropagation(); deleteFrame(index); };
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-files" viewBox="0 0 16 16"><path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1zM3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4z"/></svg>';
+                copyBtn.className = 'absolute top-0 left-0 -mt-2 -ml-2 bg-blue-500 text-white rounded-full h-6 w-6 flex items-center justify-center font-bold opacity-0 group-hover:opacity-100 transition-opacity';
+                copyBtn.title = 'Duplicate Frame';
+                copyBtn.onclick = (e) => { e.stopPropagation(); copyFrame(index); };
+                frameContainer.appendChild(deleteBtn);
+                frameContainer.appendChild(copyBtn);
+                frameElement.addEventListener('click', () => {
                     if (isPlaying) return;
                     saveFrame();
                     currentFrameIndex = index;
                     loadFrame(index);
-                    updateActiveFrameHighlight();
+                    updateActiveFrame();
                     renderOnionSkins();
-                };
-                const controlsContainer = document.createElement('div');
-                controlsContainer.className = 'absolute top-0 right-0 flex opacity-0 group-hover:opacity-100 transition-opacity';
-                const duplicateBtn = document.createElement('button');
-                duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z" /></svg>`;
-                duplicateBtn.className = 'bg-blue-500 text-white rounded-full p-1 -mt-2 -mr-1 shadow';
-                duplicateBtn.title = 'Duplicate Frame';
-                duplicateBtn.onclick = (e) => { e.stopPropagation(); duplicateFrame(index); };
-                const deleteBtn = document.createElement('button');
-                deleteBtn.innerHTML = 'X';
-                deleteBtn.className = 'bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center -mt-2 -mr-2 shadow';
-                deleteBtn.title = 'Delete Frame';
-                deleteBtn.onclick = (e) => { e.stopPropagation(); deleteFrame(index); };
-                controlsContainer.appendChild(duplicateBtn);
-                if (frames.length > 1) { controlsContainer.appendChild(deleteBtn); }
-                frameContainer.appendChild(frameDiv);
-                frameContainer.appendChild(frameNumber);
-                frameContainer.appendChild(controlsContainer);
+                });
                 return frameContainer;
             }
-            
+
             function updateTimelineThumbnail(index) {
-                if (index < 0 || index >= frames.length) return;
-                const thumbImg = document.getElementById(`thumb-${index}`);
-                if (thumbImg) { thumbImg.src = frames[index]; }
+                const thumbCanvas = timeline.querySelector(`canvas[data-index='${index}']`);
+                if (!thumbCanvas || !frames[index]) return;
+                const thumbCtx = thumbCanvas.getContext('2d');
+                thumbCanvas.width = thumbCanvas.offsetWidth * 2;
+                thumbCanvas.height = thumbCanvas.offsetHeight * 2;
+                const img = new Image();
+                img.onload = () => {
+                    thumbCtx.fillStyle = 'white';
+                    thumbCtx.fillRect(0,0,thumbCanvas.width, thumbCanvas.height);
+                    thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+                };
+                img.src = frames[index];
             }
 
+            function updateActiveFrame() {
+                timeline.querySelectorAll('.timeline-frame').forEach((el, i) => {
+                    el.classList.toggle('active', i === currentFrameIndex);
+                });
+            }
+            
             function addNewFrame() {
                 saveFrame();
                 const newCanvas = document.createElement('canvas');
@@ -411,16 +529,9 @@
                 currentFrameIndex++;
                 loadFrame(currentFrameIndex);
                 renderTimeline();
-                updateTimelineThumbnail(currentFrameIndex - 1);
+                renderOnionSkins();
             }
             
-            function duplicateFrame(index) {
-                frames.splice(index + 1, 0, frames[index]);
-                currentFrameIndex = index + 1;
-                loadFrame(currentFrameIndex);
-                renderTimeline();
-            }
-
             function deleteFrame(index) {
                 if (frames.length <= 1) return;
                 frames.splice(index, 1);
@@ -430,164 +541,161 @@
                 renderOnionSkins();
             }
 
-            function updateActiveFrameHighlight() {
-                document.querySelectorAll('.timeline-frame').forEach(frame => {
-                    frame.classList.remove('active');
-                    if (parseInt(frame.dataset.index) === currentFrameIndex) {
-                        frame.classList.add('active');
-                        frame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    }
-                });
+            function copyFrame(index) {
+                frames.splice(index + 1, 0, frames[index]);
+                currentFrameIndex = index + 1;
+                loadFrame(currentFrameIndex);
+                renderTimeline();
+                renderOnionSkins();
             }
 
             // --- Animation Playback ---
             function playAnimation() {
-                let frame = 0;
-                animationInterval = setInterval(() => {
-                    if (frame >= frames.length) frame = 0;
-                    loadFrame(frame);
-                    currentFrameIndex = frame;
-                    updateActiveFrameHighlight();
-                    frame++;
-                }, 1000 / fpsSlider.value);
+                if (isPlaying) return; isPlaying = true;
+                playIcon.classList.add('hidden'); pauseIcon.classList.remove('hidden');
+                lastFrameTime = performance.now();
+                animationLoop();
             }
-            function stopAnimation() { clearInterval(animationInterval); loadFrame(currentFrameIndex); }
-            playPauseBtn.addEventListener('click', () => {
-                isPlaying = !isPlaying;
-                if (isPlaying) {
-                    saveFrame();
-                    playPauseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-                    playAnimation();
-                } else {
-                    playPauseBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-                    stopAnimation();
-                }
-            });
-            fpsSlider.addEventListener('input', () => {
-                fpsValue.textContent = fpsSlider.value;
-                if (isPlaying) { stopAnimation(); playAnimation(); }
-            });
 
-            // --- Tool Logic ---
-            function setActiveTool(tool) {
-                currentTool = tool;
-                penTool.classList.toggle('bg-blue-500', tool === 'pen');
-                penTool.classList.toggle('bg-gray-500', tool !== 'pen');
-                eraserTool.classList.toggle('bg-blue-500', tool === 'eraser');
-                eraserTool.classList.toggle('bg-gray-500', tool !== 'eraser');
-                lassoTool.classList.toggle('bg-blue-500', tool === 'lasso');
-                lassoTool.classList.toggle('bg-gray-500', tool !== 'lasso');
-                brushSizeSlider.disabled = (tool === 'lasso');
+            function pauseAnimation() {
+                isPlaying = false;
+                playIcon.classList.remove('hidden'); pauseIcon.classList.add('hidden');
+                cancelAnimationFrame(animationFrameId);
             }
-            penTool.addEventListener('click', () => setActiveTool('pen'));
-            eraserTool.addEventListener('click', () => setActiveTool('eraser'));
-            lassoTool.addEventListener('click', () => setActiveTool('lasso'));
             
-            // --- Background Logic ---
-            function drawBackground() {
-                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-                if (background.image) { bgCtx.drawImage(background.image, 0, 0, bgCanvas.width, bgCanvas.height); } 
-                else { bgCtx.fillStyle = background.color; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); }
+            function animationLoop(currentTime) {
+                if (!isPlaying) return;
+                animationFrameId = requestAnimationFrame(animationLoop);
+                const timeSinceLastFrame = currentTime - lastFrameTime;
+                const frameInterval = 1000 / fpsSlider.value;
+                if (timeSinceLastFrame > frameInterval) {
+                    lastFrameTime = currentTime - (timeSinceLastFrame % frameInterval);
+                    currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+                    loadFrame(currentFrameIndex);
+                    updateActiveFrame();
+                }
             }
-            bgColorPicker.addEventListener('input', (e) => {
-                background.color = e.target.value; background.image = null; drawBackground();
-            });
-            bgImageInput.addEventListener('change', (e) => {
+
+            // --- GIF Export ---
+            async function exportToGif() {
+                loadingModal.classList.remove('hidden');
+                const gif = new GIF({
+                    workers: 2, quality: 10, width: canvas.width, height: canvas.height,
+                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                });
+                const renderCanvas = document.createElement('canvas');
+                renderCanvas.width = canvas.width; renderCanvas.height = canvas.height;
+                const renderCtx = renderCanvas.getContext('2d');
+
+                for (const frameData of frames) {
+                    await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
+                            if (backgroundImage) renderCtx.drawImage(backgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
+                            renderCtx.drawImage(img, 0, 0, renderCanvas.width, renderCanvas.height);
+                            gif.addFrame(renderCanvas, { delay: 1000 / fpsSlider.value, copy: true });
+                            resolve();
+                        };
+                        img.src = frameData;
+                    });
+                }
+                gif.on('finished', blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'animation.gif'; a.click();
+                    URL.revokeObjectURL(url);
+                    loadingModal.classList.add('hidden');
+                });
+                gif.render();
+            }
+
+            // --- Background Image ---
+             function drawBackground() {
+                clearCanvas(bgCtx);
+                if (backgroundImage) { bgCtx.drawImage(backgroundImage, 0, 0, bgCanvas.width, bgCanvas.height); } 
+            }
+            function handleBackgroundUpload(e) {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = () => { background.image = img; background.color = null; drawBackground(); };
+                    img.onload = () => { backgroundImage = img; drawBackground(); };
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
-            });
-            clearBgBtn.addEventListener('click', () => {
-                background.image = null; background.color = '#FFFFFF'; bgColorPicker.value = '#FFFFFF'; drawBackground();
-            });
-            
-            // --- Onion Skinning ---
+                e.target.value = null;
+            }
+            function clearBackground() { backgroundImage = null; drawBackground(); }
+
+             // --- Onion Skinning ---
             function renderOnionSkins() {
-                onionBehindCtx.clearRect(0, 0, canvas.width, canvas.height);
-                onionAheadCtx.clearRect(0, 0, canvas.width, canvas.height);
+                clearCanvas(onionBehindCtx);
+                clearCanvas(onionAheadCtx);
                 if (!onionSkinCheckbox.checked) return;
-                if (currentFrameIndex > 0) {
-                    const prevImg = new Image();
-                    prevImg.onload = () => { onionBehindCtx.globalAlpha = 0.3; onionBehindCtx.drawImage(prevImg, 0, 0, canvas.width, canvas.height); };
-                    prevImg.src = frames[currentFrameIndex - 1];
-                }
-                if (currentFrameIndex < frames.length - 1) {
-                    const nextImg = new Image();
-                    nextImg.onload = () => { onionAheadCtx.globalAlpha = 0.3; onionAheadCtx.drawImage(nextImg, 0, 0, canvas.width, canvas.height); };
-                    nextImg.src = frames[currentFrameIndex + 1];
-                }
+
+                const drawSkin = (ctx, frameIndex) => {
+                    if (frameIndex < 0 || frameIndex >= frames.length) return;
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.globalAlpha = 0.3;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        ctx.globalAlpha = 1.0;
+                    };
+                    img.src = frames[frameIndex];
+                };
+                
+                drawSkin(onionBehindCtx, currentFrameIndex - 1);
+                drawSkin(onionAheadCtx, currentFrameIndex + 1);
             }
             onionSkinCheckbox.addEventListener('change', renderOnionSkins);
-            
-            // --- Download Logic ---
-            downloadBtn.addEventListener('click', async () => { /* ... (existing code) ... */ });
 
-            // --- Save/Load Project ---
-            saveBtn.addEventListener('click', () => {
-                const projectData = {
-                    frames: frames,
-                    background: { color: background.color, image: background.image ? background.image.src : null }
-                };
-                const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'animation-project.anim';
-                a.click();
-                URL.revokeObjectURL(a.href);
-            });
-            loadProjectInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const projectData = JSON.parse(event.target.result);
-                        if (!projectData.frames) throw new Error('Invalid project file');
-                        frames = projectData.frames;
-                        if (projectData.background.image) {
-                            const img = new Image();
-                            img.onload = () => {
-                                background.image = img; background.color = null;
-                                drawBackground(); redrawAll();
-                            };
-                            img.src = projectData.background.image;
-                        } else {
-                            background.image = null; background.color = projectData.background.color || '#FFFFFF';
-                            bgColorPicker.value = background.color; drawBackground(); redrawAll();
-                        }
-                        currentFrameIndex = 0; renderTimeline(); loadFrame(0);
-                    } catch (error) {
-                        alert('Could not load the project file. It may be corrupted.'); console.error("Error loading project:", error);
-                    }
-                };
-                reader.readAsText(file);
-                loadProjectInput.value = '';
-            });
-
-            // --- Help Modal Logic ---
-            helpButton.addEventListener('click', () => helpModal.style.display = 'flex');
-            closeHelpButton.addEventListener('click', () => helpModal.style.display = 'none');
+            // --- Event Listeners ---
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            window.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('touchstart', startDrawing, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            window.addEventListener('touchend', stopDrawing);
             
+            pencilTool.addEventListener('click', () => { activeTool = 'pencil'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); pencilTool.classList.add('active');});
+            eraserTool.addEventListener('click', () => { activeTool = 'eraser'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); eraserTool.classList.add('active');});
+            lassoTool.addEventListener('click', () => { activeTool = 'lasso'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); lassoTool.classList.add('active');});
+
+            brushSizeSlider.addEventListener('input', () => { brushSizeValue.textContent = brushSizeSlider.value; });
+            addFrameBtn.addEventListener('click', addNewFrame);
+            playPauseBtn.addEventListener('click', () => { isPlaying ? pauseAnimation() : playAnimation(); });
+            fpsSlider.addEventListener('input', () => { fpsValue.textContent = fpsSlider.value; });
+            exportGifBtn.addEventListener('click', exportToGif);
+            window.addEventListener('resize', resizeCanvas);
+            closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
+            showInstructionsBtn.addEventListener('click', () => instructionsModal.classList.remove('hidden'));
+            saveProjectBtn.addEventListener('click', saveProject);
+            loadProjectInput.addEventListener('change', loadProject);
+            bgUploadInput.addEventListener('change', handleBackgroundUpload);
+            clearBgBtn.addEventListener('click', clearBackground);
+
             // --- Initialization ---
             function initialize() {
                 const blankCanvas = document.createElement('canvas');
-                blankCanvas.width = 1280; blankCanvas.height = 720;
+                blankCanvas.width = 1280; blankCanvas.height = 720; // Default internal resolution
                 frames.push(blankCanvas.toDataURL());
                 resizeCanvas();
                 renderTimeline();
                 loadFrame(0);
                 updateTimelineThumbnail(0);
+                 if (!localStorage.getItem('animationToolInstructionsSeen')) {
+                    instructionsModal.classList.remove('hidden');
+                    localStorage.setItem('animationToolInstructionsSeen', 'true');
+                }
             }
             initialize();
         });
     </script>
-
 </body>
 </html>
+
+
 
