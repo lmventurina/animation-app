@@ -19,7 +19,7 @@
             border-color: #4f46e5; /* indigo-600 */
             box-shadow: 0 0 10px rgba(79, 70, 229, 0.7);
         }
-        .tool-button.active {
+        .tool-button.active, .layer-button.active {
             background-color: #4f46e5; /* indigo-600 */
             color: white;
             border-color: #6366f1; /* indigo-500 */
@@ -68,11 +68,18 @@
         }
         #onion-skin-canvas-behind,
         #onion-skin-canvas-ahead,
-        #selection-canvas {
+        #selection-canvas,
+        #preview-canvas { /* preview canvas for shapes */
             pointer-events: none;
         }
-        #bg-canvas {
-            background-color: white;
+        #image-bg-canvas {
+             background-color: white;
+        }
+
+        /* Disabled button style */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -103,20 +110,58 @@
     <div class="flex flex-col md:flex-row flex-grow overflow-hidden">
         <!-- Toolbar -->
         <aside class="w-full md:w-64 bg-slate-800 p-4 flex-shrink-0 flex flex-col gap-6 overflow-y-auto z-10 border-b md:border-b-0 md:border-r border-slate-700">
+            <!-- Layers -->
+            <div>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">Layer</h3>
+                 <div class="grid grid-cols-2 gap-2">
+                    <button id="animation-layer-btn" class="layer-button active bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Animation</button>
+                    <button id="background-layer-btn" class="layer-button bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Background</button>
+                </div>
+            </div>
+            
             <!-- Tools -->
             <div>
                 <h3 class="text-sm font-semibold mb-2 text-gray-400">Tool</h3>
-                <div class="grid grid-cols-3 gap-2">
-                    <button id="pencil-tool" class="tool-button active p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pencil">
+                <div id="tools-container" class="grid grid-cols-3 gap-2">
+                    <button data-tool="pencil" class="tool-button active p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pencil">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-pencil-fill" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
                     </button>
-                    <button id="eraser-tool" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Eraser">
+                    <button data-tool="eraser" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Eraser">
                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-eraser-fill" viewBox="0 0 16 16"><path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828l6.879-6.879zm.66 11.34L3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293l.16-.16z"/></svg>
                     </button>
-                    <button id="lasso-tool" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Lasso Erase">
+                    <button data-tool="lasso" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Lasso Erase">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6">
                             <path d="M4.23223 15.7678C1.20573 12.7413 1.20573 7.75868 4.23223 4.73223C7.25873 1.70573 12.2413 1.70573 15.2678 4.73223C18.2943 7.75868 18.2943 12.7413 15.2678 15.7678L12.5 18.5L9.5 21.5L4.23223 15.7678Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 4"/>
                         </svg>
+                    </button>
+                     <button data-tool="line" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Line">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 19.5L19.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button data-tool="rectangle" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Rectangle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button data-tool="circle" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+             <!-- History -->
+            <div>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">History</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="undo-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center gap-2" title="Undo (Ctrl+Z)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                          <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+                          <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
+                        </svg>
+                        Undo
+                    </button>
+                    <button id="redo-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center gap-2" title="Redo (Ctrl+Y)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                          <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                          <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966a.25.25 0 0 1 0 .384l-2.36 1.966A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                        Redo
                     </button>
                 </div>
             </div>
@@ -140,9 +185,9 @@
                     <span class="ml-2 text-sm font-medium">Onion Skin</span>
                 </label>
             </div>
-            <!-- Background -->
+            <!-- Background Options -->
             <div>
-                <h3 class="text-sm font-semibold mb-2 text-gray-400">Background</h3>
+                <h3 class="text-sm font-semibold mb-2 text-gray-400">Background Options</h3>
                 <div class="flex flex-col gap-2">
                     <label for="bg-upload-input" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm text-center cursor-pointer">Upload Image</label>
                     <input type="file" id="bg-upload-input" class="hidden" accept="image/*">
@@ -170,11 +215,12 @@
         <!-- Canvas -->
         <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden">
              <div class="canvas-container shadow-xl">
-                <canvas id="bg-canvas" class="base-canvas"></canvas>
+                <canvas id="image-bg-canvas" class="base-canvas"></canvas>
+                <canvas id="drawing-bg-canvas" class="base-canvas"></canvas>
                 <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
-                <canvas id="canvas" class="base-canvas cursor-crosshair"></canvas>
+                <canvas id="animation-canvas" class="base-canvas cursor-crosshair"></canvas>
                 <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
-                <canvas id="selection-canvas" class="base-canvas"></canvas>
+                <canvas id="preview-canvas" class="base-canvas"></canvas>
             </div>
         </main>
     </div>
@@ -208,10 +254,11 @@
         <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
             <h2 class="text-2xl font-bold mb-6 text-center">How to Use the Animation Tool</h2>
             <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                <li><b>Layers:</b> Switch between drawing on the 'Animation' layer (for moving parts) and the 'Background' layer (for static scenery).</li>
+                <li><b>Tools:</b> Select a tool like Pencil, Eraser, Lasso, or Shapes from the sidebar.</li>
+                <li><b>Undo/Redo:</b> Use the undo/redo buttons in the sidebar or press <code>Ctrl+Z</code> / <code>Ctrl+Y</code>.</li>
                 <li><b>Save/Load Project:</b> Use the 'Save' and 'Load' buttons to save your progress as a <code>.anim</code> file and open it again later.</li>
-                <li><b>Draw & Erase:</b> Use the <span class="text-indigo-400">Pencil</span> and <span class="text-red-400">Eraser</span> tools on the left. Adjust color and brush size below them.</li>
-                <li><b>Lasso Erase:</b> Use the Lasso tool to draw a selection. When you release the mouse, everything inside the selection will be erased.</li>
-                <li><b>Background:</b> Use the 'Upload Image' button to add a picture background. Use 'Clear Background' to remove it.</li>
+                <li><b>Background Options:</b> You can either draw your own background on the background layer or upload an image using the 'Upload Image' button.</li>
                 <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
                 <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
                 <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
@@ -227,22 +274,27 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const canvasContainer = document.querySelector('.canvas-container');
-            const bgCanvas = document.getElementById('bg-canvas');
+            const imageBgCanvas = document.getElementById('image-bg-canvas');
+            const drawingBgCanvas = document.getElementById('drawing-bg-canvas');
             const onionBehindCanvas = document.getElementById('onion-skin-canvas-behind');
-            const canvas = document.getElementById('canvas');
+            const animationCanvas = document.getElementById('animation-canvas');
             const onionAheadCanvas = document.getElementById('onion-skin-canvas-ahead');
-            const selectionCanvas = document.getElementById('selection-canvas');
+            const previewCanvas = document.getElementById('preview-canvas');
 
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            const bgCtx = bgCanvas.getContext('2d');
+            const animCtx = animationCanvas.getContext('2d', { willReadFrequently: true });
+            const imageBgCtx = imageBgCanvas.getContext('2d');
+            const drawingBgCtx = drawingBgCanvas.getContext('2d');
             const onionBehindCtx = onionBehindCanvas.getContext('2d');
             const onionAheadCtx = onionAheadCanvas.getContext('2d');
-            const selectionCtx = selectionCanvas.getContext('2d');
+            const previewCtx = previewCanvas.getContext('2d');
 
             // --- DOM Elements ---
-            const pencilTool = document.getElementById('pencil-tool');
-            const eraserTool = document.getElementById('eraser-tool');
-            const lassoTool = document.getElementById('lasso-tool');
+            const animationLayerBtn = document.getElementById('animation-layer-btn');
+            const backgroundLayerBtn = document.getElementById('background-layer-btn');
+            const toolsContainer = document.getElementById('tools-container');
+            const toolButtons = document.querySelectorAll('.tool-button');
+            const undoBtn = document.getElementById('undo-btn');
+            const redoBtn = document.getElementById('redo-btn');
             const colorPicker = document.getElementById('color-picker');
             const brushSizeSlider = document.getElementById('brush-size');
             const brushSizeValue = document.getElementById('brush-size-value');
@@ -266,35 +318,116 @@
 
             // --- State ---
             let frames = [];
+            let backgroundData = {
+                current: null,
+                undoStack: [],
+                redoStack: []
+            };
             let currentFrameIndex = 0;
             let isDrawing = false;
-            let activeTool = 'pencil'; // 'pencil', 'eraser', 'lasso'
+            let activeTool = 'pencil';
+            let activeLayer = 'animation'; // 'animation' or 'background'
+            let shapeStartPos = null;
             let isPlaying = false;
             let animationFrameId;
             let lastFrameTime = 0;
-            let backgroundImage = null;
+            let uploadedBackgroundImage = null;
             let lassoPoints = [];
 
             // --- Canvas Setup ---
             function resizeCanvas() {
                 const { width, height } = canvasContainer.getBoundingClientRect();
-                [bgCanvas, onionBehindCanvas, canvas, onionAheadCanvas, selectionCanvas].forEach(c => {
+                [imageBgCanvas, drawingBgCanvas, onionBehindCanvas, animationCanvas, onionAheadCanvas, previewCanvas].forEach(c => {
                     c.width = width;
                     c.height = height;
                 });
-                drawBackground();
+                
+                if (!backgroundData.current) {
+                    backgroundData.current = drawingBgCanvas.toDataURL();
+                }
+
+                drawUploadedBackground();
                 redrawAll();
             }
 
              function redrawAll() {
                 loadFrame(currentFrameIndex);
+                loadBackground();
                 renderOnionSkins();
                 frames.forEach((_, i) => updateTimelineThumbnail(i));
             }
+            
+            // --- History (Undo/Redo) ---
+            function getActiveHistory() {
+                return activeLayer === 'animation' ? frames[currentFrameIndex] : backgroundData;
+            }
+
+            function pushUndoState() {
+                const history = getActiveHistory();
+                if (!history) return;
+                history.undoStack.push(history.current);
+                history.redoStack = []; // Clear redo stack on new action
+                if (history.undoStack.length > 30) { 
+                    history.undoStack.shift();
+                }
+                updateUndoRedoButtons();
+            }
+            
+            function undo() {
+                const history = getActiveHistory();
+                if (!history || history.undoStack.length === 0) return;
+                history.redoStack.push(history.current);
+                history.current = history.undoStack.pop();
+                
+                const targetCtx = activeLayer === 'animation' ? animCtx : drawingBgCtx;
+                const img = new Image();
+                img.onload = () => {
+                    clearCanvas(targetCtx);
+                    targetCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
+                    if (activeLayer === 'animation') {
+                        updateTimelineThumbnail(currentFrameIndex);
+                        renderOnionSkins();
+                    }
+                };
+                img.src = history.current;
+                updateUndoRedoButtons();
+            }
+
+            function redo() {
+                const history = getActiveHistory();
+                if (!history || history.redoStack.length === 0) return;
+                history.undoStack.push(history.current);
+                history.current = history.redoStack.pop();
+                
+                const targetCtx = activeLayer === 'animation' ? animCtx : drawingBgCtx;
+                const img = new Image();
+                img.onload = () => {
+                    clearCanvas(targetCtx);
+                    targetCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
+                     if (activeLayer === 'animation') {
+                        updateTimelineThumbnail(currentFrameIndex);
+                        renderOnionSkins();
+                    }
+                };
+                img.src = history.current;
+                updateUndoRedoButtons();
+            }
+
+            function updateUndoRedoButtons() {
+                const history = getActiveHistory();
+                if (!history) {
+                    undoBtn.disabled = true;
+                    redoBtn.disabled = true;
+                    return;
+                };
+                undoBtn.disabled = history.undoStack.length === 0;
+                redoBtn.disabled = history.redoStack.length === 0;
+            }
+
 
             // --- Drawing Logic ---
             function getMousePos(e) {
-                const rect = canvas.getBoundingClientRect();
+                const rect = animationCanvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -303,20 +436,27 @@
                     y: (clientY - rect.top)
                 };
             }
+            
+            function getActiveContext() {
+                return activeLayer === 'animation' ? animCtx : drawingBgCtx;
+            }
 
             function startDrawing(e) {
                 if (e.touches) e.preventDefault();
+                isDrawing = true;
                 const pos = getMousePos(e);
+                const currentCtx = getActiveContext();
 
-                if (activeTool === 'lasso') {
-                    isDrawing = true;
-                    lassoPoints = [pos];
-                    selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-                } else {
-                    isDrawing = true;
-                    ctx.beginPath();
-                    ctx.moveTo(pos.x, pos.y);
+                if (['pencil', 'eraser'].includes(activeTool)) {
+                    pushUndoState();
+                    currentCtx.beginPath();
+                    currentCtx.moveTo(pos.x, pos.y);
                     draw(e);
+                } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
+                    shapeStartPos = pos;
+                } else if (activeTool === 'lasso') {
+                    lassoPoints = [pos];
+                    clearCanvas(previewCtx);
                 }
             }
             
@@ -324,81 +464,141 @@
                 if (!isDrawing) return;
                 if (e.touches) e.preventDefault();
                 const pos = getMousePos(e);
+                const currentCtx = getActiveContext();
                 
-                if (activeTool === 'lasso') {
+                if (['pencil', 'eraser'].includes(activeTool)) {
+                    currentCtx.lineWidth = brushSizeSlider.value;
+                    currentCtx.lineCap = 'round';
+                    currentCtx.lineJoin = 'round';
+                    currentCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                    currentCtx.strokeStyle = colorPicker.value;
+                    currentCtx.lineTo(pos.x, pos.y);
+                    currentCtx.stroke();
+                    currentCtx.beginPath();
+                    currentCtx.moveTo(pos.x, pos.y);
+                } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
+                    drawShapePreview(pos);
+                } else if (activeTool === 'lasso') {
                     lassoPoints.push(pos);
                     drawLassoPath();
-                    return;
                 }
-
-                ctx.lineWidth = brushSizeSlider.value;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                
-                if (activeTool === 'pencil') {
-                    ctx.strokeStyle = colorPicker.value;
-                    ctx.globalCompositeOperation = 'source-over';
-                } else if (activeTool === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
-                }
-                
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
             }
 
-            function stopDrawing() {
+            function stopDrawing(e) {
                 if (!isDrawing) return;
-                 isDrawing = false;
-
-                if (activeTool === 'lasso') {
-                     if (lassoPoints.length > 2) {
+                isDrawing = false;
+                const currentCtx = getActiveContext();
+                
+                if (['pencil', 'eraser'].includes(activeTool)) {
+                    currentCtx.beginPath();
+                } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
+                    pushUndoState();
+                    drawShape(getMousePos(e));
+                    shapeStartPos = null;
+                } else if (activeTool === 'lasso') {
+                    if (lassoPoints.length > 2) {
+                        pushUndoState();
                         applyLassoDelete();
                     }
                     lassoPoints = [];
-                    selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-                } else {
-                     ctx.beginPath();
+                    clearCanvas(previewCtx);
                 }
                 
-                saveFrame();
+                if (activeLayer === 'animation') {
+                    saveFrame();
+                } else {
+                    saveBackground();
+                }
             }
+            
+            // --- Shape Drawing Logic ---
+            function drawShapePreview(currentPos) {
+                clearCanvas(previewCtx);
+                previewCtx.lineWidth = brushSizeSlider.value;
+                previewCtx.strokeStyle = colorPicker.value;
+                previewCtx.beginPath();
+                
+                const start = shapeStartPos;
+                const end = currentPos;
+                
+                if (activeTool === 'line') {
+                    previewCtx.moveTo(start.x, start.y);
+                    previewCtx.lineTo(end.x, end.y);
+                } else if (activeTool === 'rectangle') {
+                    previewCtx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+                } else if (activeTool === 'circle') {
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const radius = Math.sqrt(dx * dx + dy * dy);
+                    previewCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+                }
+                previewCtx.stroke();
+            }
+
+            function drawShape(endPos) {
+                clearCanvas(previewCtx);
+                const currentCtx = getActiveContext();
+                currentCtx.lineWidth = brushSizeSlider.value;
+                currentCtx.strokeStyle = colorPicker.value;
+                currentCtx.lineCap = 'round';
+                currentCtx.lineJoin = 'round';
+                currentCtx.globalCompositeOperation = 'source-over';
+                currentCtx.beginPath();
+
+                const start = shapeStartPos;
+                const end = endPos;
+
+                if (activeTool === 'line') {
+                    currentCtx.moveTo(start.x, start.y);
+                    currentCtx.lineTo(end.x, end.y);
+                } else if (activeTool === 'rectangle') {
+                    currentCtx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+                } else if (activeTool === 'circle') {
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const radius = Math.sqrt(dx * dx + dy * dy);
+                    currentCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+                }
+                currentCtx.stroke();
+            }
+
 
              // --- Lasso Logic ---
             function drawLassoPath() {
                 if (lassoPoints.length < 2) return;
-                selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-                selectionCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                selectionCtx.lineWidth = 2;
-                selectionCtx.setLineDash([6, 6]);
-                selectionCtx.beginPath();
-                selectionCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+                clearCanvas(previewCtx);
+                previewCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                previewCtx.lineWidth = 2;
+                previewCtx.setLineDash([6, 6]);
+                previewCtx.beginPath();
+                previewCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
                 for (let i = 1; i < lassoPoints.length; i++) {
-                    selectionCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+                    previewCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
                 }
-                selectionCtx.stroke();
-                selectionCtx.setLineDash([]);
+                previewCtx.stroke();
+                previewCtx.setLineDash([]);
             }
 
             function applyLassoDelete() {
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+                const currentCtx = getActiveContext();
+                currentCtx.save();
+                currentCtx.beginPath();
+                currentCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
                 for (let i = 1; i < lassoPoints.length; i++) {
-                    ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+                    currentCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
                 }
-                ctx.closePath();
-                ctx.clip();
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.restore();
+                currentCtx.closePath();
+                currentCtx.clip();
+                currentCtx.clearRect(0, 0, animationCanvas.width, animationCanvas.height);
+                currentCtx.restore();
             }
 
             // --- Project Save/Load ---
             function saveProject() {
                 const projectData = {
-                    frames: frames,
-                    backgroundImageSrc: backgroundImage ? backgroundImage.src : null,
+                    frames: frames.map(f => f.current),
+                    drawnBackground: backgroundData.current,
+                    uploadedImage: uploadedBackgroundImage ? uploadedBackgroundImage.src : null,
                 };
                 const jsonString = JSON.stringify(projectData);
                 const blob = new Blob([jsonString], { type: 'application/json' });
@@ -418,20 +618,33 @@
                     try {
                         const projectData = JSON.parse(event.target.result);
                         if (!projectData.frames) throw new Error('Invalid project file');
-                        frames = projectData.frames;
+                        
+                        frames = projectData.frames.map(frameDataURL => ({
+                            current: frameDataURL, undoStack: [], redoStack: [],
+                        }));
+
+                        backgroundData = {
+                            current: projectData.drawnBackground || drawingBgCanvas.toDataURL(),
+                            undoStack: [], redoStack: []
+                        };
+
                         currentFrameIndex = 0;
-                        const loadAction = () => {
+
+                        const loadVisuals = () => {
                             renderTimeline();
                             redrawAll();
+                            updateUndoRedoButtons();
                         };
-                        if (projectData.backgroundImageSrc) {
+                        
+                        if (projectData.uploadedImage) {
                             const img = new Image();
-                            img.onload = () => { backgroundImage = img; drawBackground(); loadAction(); };
-                            img.src = projectData.backgroundImageSrc;
+                            img.onload = () => { uploadedBackgroundImage = img; loadVisuals(); };
+                            img.src = projectData.uploadedImage;
                         } else {
-                            backgroundImage = null; drawBackground(); loadAction();
+                            uploadedBackgroundImage = null; loadVisuals();
                         }
                     } catch (error) {
+                        console.error("Error loading project:", error);
                         alert('Could not load project file.');
                     }
                 };
@@ -441,17 +654,31 @@
 
             // --- Frame Management ---
             function saveFrame() {
-                frames[currentFrameIndex] = canvas.toDataURL();
+                if (!frames[currentFrameIndex]) return;
+                frames[currentFrameIndex].current = animationCanvas.toDataURL();
                 updateTimelineThumbnail(currentFrameIndex);
             }
 
             function loadFrame(index) {
-                clearCanvas(ctx);
+                clearCanvas(animCtx);
                 if (index < 0 || index >= frames.length) return;
                 const img = new Image();
-                img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
-                img.src = frames[index];
+                img.onload = () => { animCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height); };
+                img.src = frames[index].current;
             }
+
+            function saveBackground() {
+                backgroundData.current = drawingBgCanvas.toDataURL();
+            }
+            
+            function loadBackground() {
+                 clearCanvas(drawingBgCtx);
+                 if (!backgroundData.current) return;
+                 const img = new Image();
+                 img.onload = () => { drawingBgCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height); };
+                 img.src = backgroundData.current;
+            }
+
 
             function clearCanvas(context) {
                 context.clearRect(0, 0, context.canvas.width, context.canvas.height);
@@ -491,18 +718,19 @@
                 frameContainer.appendChild(copyBtn);
                 frameElement.addEventListener('click', () => {
                     if (isPlaying) return;
-                    saveFrame();
+                    if(activeLayer === 'animation') saveFrame(); else saveBackground();
                     currentFrameIndex = index;
                     loadFrame(index);
                     updateActiveFrame();
                     renderOnionSkins();
+                    updateUndoRedoButtons();
                 });
                 return frameContainer;
             }
 
             function updateTimelineThumbnail(index) {
                 const thumbCanvas = timeline.querySelector(`canvas[data-index='${index}']`);
-                if (!thumbCanvas || !frames[index]) return;
+                if (!thumbCanvas || !frames[index] || !frames[index].current) return;
                 const thumbCtx = thumbCanvas.getContext('2d');
                 thumbCanvas.width = thumbCanvas.offsetWidth * 2;
                 thumbCanvas.height = thumbCanvas.offsetHeight * 2;
@@ -512,7 +740,7 @@
                     thumbCtx.fillRect(0,0,thumbCanvas.width, thumbCanvas.height);
                     thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
                 };
-                img.src = frames[index];
+                img.src = frames[index].current;
             }
 
             function updateActiveFrame() {
@@ -524,12 +752,18 @@
             function addNewFrame() {
                 saveFrame();
                 const newCanvas = document.createElement('canvas');
-                newCanvas.width = canvas.width; newCanvas.height = canvas.height;
-                frames.splice(currentFrameIndex + 1, 0, newCanvas.toDataURL());
+                newCanvas.width = animationCanvas.width; newCanvas.height = animationCanvas.height;
+                const newFrame = {
+                    current: newCanvas.toDataURL(),
+                    undoStack: [],
+                    redoStack: []
+                };
+                frames.splice(currentFrameIndex + 1, 0, newFrame);
                 currentFrameIndex++;
                 loadFrame(currentFrameIndex);
                 renderTimeline();
                 renderOnionSkins();
+                updateUndoRedoButtons();
             }
             
             function deleteFrame(index) {
@@ -539,14 +773,22 @@
                 loadFrame(currentFrameIndex);
                 renderTimeline();
                 renderOnionSkins();
+                updateUndoRedoButtons();
             }
 
             function copyFrame(index) {
-                frames.splice(index + 1, 0, frames[index]);
+                const frameToCopy = frames[index];
+                const newFrame = {
+                    current: frameToCopy.current,
+                    undoStack: [],
+                    redoStack: []
+                };
+                frames.splice(index + 1, 0, newFrame);
                 currentFrameIndex = index + 1;
                 loadFrame(currentFrameIndex);
                 renderTimeline();
                 renderOnionSkins();
+                updateUndoRedoButtons();
             }
 
             // --- Animation Playback ---
@@ -580,25 +822,32 @@
             async function exportToGif() {
                 loadingModal.classList.remove('hidden');
                 const gif = new GIF({
-                    workers: 2, quality: 10, width: canvas.width, height: canvas.height,
+                    workers: 2, quality: 10, width: animationCanvas.width, height: animationCanvas.height,
                     workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
                 });
                 const renderCanvas = document.createElement('canvas');
-                renderCanvas.width = canvas.width; renderCanvas.height = canvas.height;
+                renderCanvas.width = animationCanvas.width; renderCanvas.height = animationCanvas.height;
                 const renderCtx = renderCanvas.getContext('2d');
+                
+                const bgDrawnImage = new Image();
+                bgDrawnImage.src = backgroundData.current;
+                await bgDrawnImage.decode();
 
-                for (const frameData of frames) {
+                for (const frame of frames) {
                     await new Promise(resolve => {
-                        const img = new Image();
-                        img.onload = () => {
+                        const frameImg = new Image();
+                        frameImg.onload = () => {
                             renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
-                            if (backgroundImage) renderCtx.drawImage(backgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            // Composite background layers
+                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
                             else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
-                            renderCtx.drawImage(img, 0, 0, renderCanvas.width, renderCanvas.height);
+                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            // Draw animation frame on top
+                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
                             gif.addFrame(renderCanvas, { delay: 1000 / fpsSlider.value, copy: true });
                             resolve();
                         };
-                        img.src = frameData;
+                        frameImg.src = frame.current;
                     });
                 }
                 gif.on('finished', blob => {
@@ -612,9 +861,9 @@
             }
 
             // --- Background Image ---
-             function drawBackground() {
-                clearCanvas(bgCtx);
-                if (backgroundImage) { bgCtx.drawImage(backgroundImage, 0, 0, bgCanvas.width, bgCanvas.height); } 
+             function drawUploadedBackground() {
+                clearCanvas(imageBgCtx);
+                if (uploadedBackgroundImage) { imageBgCtx.drawImage(uploadedBackgroundImage, 0, 0, imageBgCanvas.width, imageBgCanvas.height); } 
             }
             function handleBackgroundUpload(e) {
                 const file = e.target.files[0];
@@ -622,47 +871,84 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = () => { backgroundImage = img; drawBackground(); };
+                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground(); };
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
                 e.target.value = null;
             }
-            function clearBackground() { backgroundImage = null; drawBackground(); }
+            function clearBackground() { 
+                uploadedBackgroundImage = null; 
+                drawUploadedBackground();
+                pushUndoState(); // for drawing bg
+                const blankBg = document.createElement('canvas');
+                blankBg.width = animationCanvas.width; blankBg.height = animationCanvas.height;
+                backgroundData.current = blankBg.toDataURL();
+                loadBackground();
+             }
 
              // --- Onion Skinning ---
             function renderOnionSkins() {
                 clearCanvas(onionBehindCtx);
                 clearCanvas(onionAheadCtx);
-                if (!onionSkinCheckbox.checked) return;
+                if (!onionSkinCheckbox.checked || activeLayer !== 'animation') return;
 
                 const drawSkin = (ctx, frameIndex) => {
                     if (frameIndex < 0 || frameIndex >= frames.length) return;
                     const img = new Image();
                     img.onload = () => {
                         ctx.globalAlpha = 0.3;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
                         ctx.globalAlpha = 1.0;
                     };
-                    img.src = frames[frameIndex];
+                    img.src = frames[frameIndex].current;
                 };
                 
                 drawSkin(onionBehindCtx, currentFrameIndex - 1);
                 drawSkin(onionAheadCtx, currentFrameIndex + 1);
             }
-            onionSkinCheckbox.addEventListener('change', renderOnionSkins);
 
             // --- Event Listeners ---
-            canvas.addEventListener('mousedown', startDrawing);
-            canvas.addEventListener('mousemove', draw);
+            animationCanvas.addEventListener('mousedown', startDrawing);
+            animationCanvas.addEventListener('mousemove', draw);
             window.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('touchstart', startDrawing, { passive: false });
-            canvas.addEventListener('touchmove', draw, { passive: false });
+            animationCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+            animationCanvas.addEventListener('touchmove', draw, { passive: false });
             window.addEventListener('touchend', stopDrawing);
             
-            pencilTool.addEventListener('click', () => { activeTool = 'pencil'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); pencilTool.classList.add('active');});
-            eraserTool.addEventListener('click', () => { activeTool = 'eraser'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); eraserTool.classList.add('active');});
-            lassoTool.addEventListener('click', () => { activeTool = 'lasso'; [pencilTool, eraserTool, lassoTool].forEach(t => t.classList.remove('active')); lassoTool.classList.add('active');});
+            toolButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    activeTool = button.dataset.tool;
+                    toolButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
+            
+            animationLayerBtn.addEventListener('click', () => {
+                activeLayer = 'animation';
+                animationLayerBtn.classList.add('active');
+                backgroundLayerBtn.classList.remove('active');
+                updateUndoRedoButtons();
+                renderOnionSkins();
+            });
+
+            backgroundLayerBtn.addEventListener('click', () => {
+                activeLayer = 'background';
+                backgroundLayerBtn.classList.add('active');
+                animationLayerBtn.classList.remove('active');
+                updateUndoRedoButtons();
+                renderOnionSkins();
+            });
+
+            undoBtn.addEventListener('click', undo);
+            redoBtn.addEventListener('click', redo);
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return; 
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+                    if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+                }
+            });
 
             brushSizeSlider.addEventListener('input', () => { brushSizeValue.textContent = brushSizeSlider.value; });
             addFrameBtn.addEventListener('click', addNewFrame);
@@ -676,16 +962,28 @@
             loadProjectInput.addEventListener('change', loadProject);
             bgUploadInput.addEventListener('change', handleBackgroundUpload);
             clearBgBtn.addEventListener('click', clearBackground);
+            onionSkinCheckbox.addEventListener('change', renderOnionSkins);
 
             // --- Initialization ---
             function initialize() {
                 const blankCanvas = document.createElement('canvas');
-                blankCanvas.width = 1280; blankCanvas.height = 720; // Default internal resolution
-                frames.push(blankCanvas.toDataURL());
+                blankCanvas.width = 1280; blankCanvas.height = 720;
+                
+                frames.push({
+                    current: blankCanvas.toDataURL(),
+                    undoStack: [],
+                    redoStack: []
+                });
+                
+                backgroundData.current = blankCanvas.toDataURL();
+                
                 resizeCanvas();
                 renderTimeline();
                 loadFrame(0);
+                loadBackground();
                 updateTimelineThumbnail(0);
+                updateUndoRedoButtons();
+
                  if (!localStorage.getItem('animationToolInstructionsSeen')) {
                     instructionsModal.classList.remove('hidden');
                     localStorage.setItem('animationToolInstructionsSeen', 'true');
@@ -696,6 +994,4 @@
     </script>
 </body>
 </html>
-
-
 
