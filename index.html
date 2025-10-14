@@ -56,6 +56,7 @@
             width: 100%;
             aspect-ratio: 16 / 9;
             max-width: 100%;
+            overflow: hidden; /* Important for zoom/pan */
         }
         .base-canvas {
             position: absolute;
@@ -145,7 +146,7 @@
             <!-- Layers -->
             <div>
                 <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Layer</h3>
-                 <div class="grid grid-cols-2 gap-2">
+                 <div class="flex flex-col gap-2">
                     <button id="animation-layer-btn" class="layer-button active bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Animation</button>
                     <button id="background-layer-btn" class="layer-button bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Background</button>
                 </div>
@@ -219,6 +220,7 @@
             <div>
                 <h3 class="text-xs font-semibold mb-1 text-gray-400 uppercase">Background Options</h3>
                 <div class="flex flex-col gap-2">
+                    <button id="generate-bg-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">✨ Generate BG with AI</button>
                     <label for="bg-upload-input" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm text-center cursor-pointer">Upload Image</label>
                     <input type="file" id="bg-upload-input" class="hidden" accept="image/*">
                     <button id="clear-bg-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Clear Background</button>
@@ -241,14 +243,25 @@
         </aside>
 
         <!-- Canvas -->
-        <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden">
-             <div class="canvas-container shadow-xl">
-                <canvas id="image-bg-canvas" class="base-canvas"></canvas>
-                <canvas id="drawing-bg-canvas" class="base-canvas"></canvas>
-                <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
-                <canvas id="animation-canvas" class="base-canvas cursor-crosshair"></canvas>
-                <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
-                <canvas id="preview-canvas" class="base-canvas"></canvas>
+        <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden relative">
+             <div id="canvas-viewport" class="w-full h-full flex items-center justify-center">
+                <div class="canvas-container shadow-xl">
+                    <canvas id="image-bg-canvas" class="base-canvas"></canvas>
+                    <canvas id="drawing-bg-canvas" class="base-canvas"></canvas>
+                    <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
+                    <canvas id="animation-canvas" class="base-canvas cursor-crosshair"></canvas>
+                    <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
+                    <canvas id="preview-canvas" class="base-canvas"></canvas>
+                </div>
+            </div>
+            <!-- Zoom Controls -->
+            <div class="absolute bottom-4 right-4 md:right-8 bg-slate-700 rounded-lg shadow-lg p-1 flex items-center gap-1 text-white">
+                <button id="zoom-out-btn" class="w-8 h-8 flex items-center justify-center hover:bg-slate-600 rounded-md">-</button>
+                <span id="zoom-level-display" class="text-xs font-mono w-12 text-center">100%</span>
+                <button id="zoom-in-btn" class="w-8 h-8 flex items-center justify-center hover:bg-slate-600 rounded-md">+</button>
+                <button id="zoom-reset-btn" class="w-8 h-8 flex items-center justify-center hover:bg-slate-600 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-aspect-ratio" viewBox="0 0 16 16"><path d="M11.25 2.5v9h-9v-9h9zM12 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"/><path d="M1.5 12.5v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a.5.5 0 0 0-1 0v.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-.5a.5.5 0 0 0-1 0z"/></svg>
+                </button>
             </div>
         </main>
     </div>
@@ -274,6 +287,32 @@
     <!-- GIF Export library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 
+    <!-- Gemini AI Background Generation Modal -->
+    <div id="gemini-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 rounded-lg p-6 max-w-lg w-full border border-slate-700 flex flex-col gap-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">✨ Generate Background with AI</h2>
+                <button id="close-gemini-modal" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div>
+                <label for="gemini-prompt" class="block text-sm font-medium text-gray-300 mb-2">Describe the background you want to create:</label>
+                <textarea id="gemini-prompt" rows="3" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., A magical, glowing forest at twilight, cartoon style"></textarea>
+            </div>
+            <div id="gemini-result-container" class="relative w-full aspect-video bg-slate-900 rounded-lg hidden items-center justify-center">
+                <img id="gemini-image-result" src="" class="w-full h-full object-contain rounded-lg">
+                <div id="gemini-loading" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+                    <div class="loader"></div>
+                </div>
+            </div>
+            <div id="gemini-error-message" class="hidden text-red-400 text-sm text-center"></div>
+            <div class="flex justify-end items-center gap-3">
+                 <button id="generate-gemini-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded-lg disabled:bg-slate-600">Generate</button>
+                 <button id="use-gemini-image-btn" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-5 rounded-lg">Use Image</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Modal for loading spinner -->
     <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
         <div class="bg-slate-800 p-8 rounded-lg shadow-xl text-center border border-slate-700">
@@ -287,13 +326,13 @@
         <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
             <h2 class="text-2xl font-bold mb-6 text-center">How to Use the Animation Tool</h2>
             <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                <li><b>✨ AI Backgrounds:</b> Click 'Generate BG with AI' to describe and create a background using generative AI.</li>
                 <li><b>Layers:</b> Switch between drawing on the 'Animation' layer (for moving parts) and the 'Background' layer (for static scenery).</li>
                 <li><b>Tools:</b> Select a tool like Pencil, Eraser, Lasso, or Shapes from the sidebar.</li>
                 <li><b>Undo/Redo:</b> Use the undo/redo buttons in the sidebar or press <code>Ctrl+Z</code> / <code>Ctrl+Y</code>.</li>
                 <li><b>Save/Load Project:</b> Use the 'Save' and 'Load' buttons to save your progress as a <code>.anim</code> file and open it again later.</li>
-                <li><b>Background Options:</b> You can either draw your own background on the background layer or upload an image using the 'Upload Image' button.</li>
                 <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
-                <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
+                <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings.</li>
                 <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
                 <li><b>Export GIF:</b> When you're finished, use the 'Export GIF' button to save your animation as a downloadable .gif file.</li>
             </ol>
@@ -306,13 +345,28 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const canvasContainer = document.querySelector('.canvas-container');
+            // ... (previous variable declarations) ...
+            const generateBgBtn = document.getElementById('generate-bg-btn');
+            const geminiModal = document.getElementById('gemini-modal');
+            const closeGeminiModalBtn = document.getElementById('close-gemini-modal');
+            const geminiPromptInput = document.getElementById('gemini-prompt');
+            const generateGeminiBtn = document.getElementById('generate-gemini-btn');
+            const useGeminiImageBtn = document.getElementById('use-gemini-image-btn');
+            const geminiResultContainer = document.getElementById('gemini-result-container');
+            const geminiImageResult = document.getElementById('gemini-image-result');
+            const geminiLoading = document.getElementById('gemini-loading');
+            const geminiErrorMessage = document.getElementById('gemini-error-message');
+
+
+            const canvasViewport = document.getElementById('canvas-viewport');
             const imageBgCanvas = document.getElementById('image-bg-canvas');
             const drawingBgCanvas = document.getElementById('drawing-bg-canvas');
             const onionBehindCanvas = document.getElementById('onion-skin-canvas-behind');
             const animationCanvas = document.getElementById('animation-canvas');
             const onionAheadCanvas = document.getElementById('onion-skin-canvas-ahead');
             const previewCanvas = document.getElementById('preview-canvas');
+
+            const allCanvases = [imageBgCanvas, drawingBgCanvas, onionBehindCanvas, animationCanvas, onionAheadCanvas, previewCanvas];
 
             const animCtx = animationCanvas.getContext('2d', { willReadFrequently: true });
             const imageBgCtx = imageBgCanvas.getContext('2d');
@@ -360,6 +414,12 @@
             const autosaveNotification = document.getElementById('autosave-notification');
             const restoreAutosaveBtn = document.getElementById('restore-autosave');
             const dismissAutosaveBtn = document.getElementById('dismiss-autosave');
+            
+            const zoomInBtn = document.getElementById('zoom-in-btn');
+            const zoomOutBtn = document.getElementById('zoom-out-btn');
+            const zoomResetBtn = document.getElementById('zoom-reset-btn');
+            const zoomLevelDisplay = document.getElementById('zoom-level-display');
+
 
             // --- State ---
             let frames = [];
@@ -379,6 +439,14 @@
             let uploadedBackgroundImage = null;
             let lassoPoints = [];
             let autosaveTimeout;
+            let isPanning = false;
+            let lastPanPosition = { x: 0, y: 0 };
+            
+            let transform = {
+                scale: 1,
+                panX: 0,
+                panY: 0
+            };
 
             
             const paletteColors = [
@@ -387,6 +455,52 @@
                 '#5bffff', '#5b98ff', '#985bff', '#ff5b98', '#ff5bff'
             ];
 
+            // --- Gemini API Logic ---
+
+            async function generateImageWithGemini(prompt) {
+                geminiResultContainer.classList.remove('hidden');
+                geminiLoading.classList.remove('hidden');
+                geminiImageResult.src = '';
+                generateGeminiBtn.disabled = true;
+                geminiErrorMessage.classList.add('hidden');
+                
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                const payload = {
+                    instances: [{ prompt: prompt }],
+                    parameters: { "sampleCount": 1 }
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        throw new Error(`API Error: ${errorBody.error?.message || 'Unknown error'}`);
+                    }
+
+                    const result = await response.json();
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                        geminiImageResult.src = imageUrl;
+                        useGeminiImageBtn.classList.remove('hidden');
+                    } else {
+                        throw new Error('No image data received from API.');
+                    }
+                } catch (error) {
+                    console.error('Gemini API Error:', error);
+                    geminiErrorMessage.textContent = `Error: ${error.message}`;
+                    geminiErrorMessage.classList.remove('hidden');
+                } finally {
+                    geminiLoading.classList.add('hidden');
+                    generateGeminiBtn.disabled = false;
+                }
+            }
+            
             // --- Autosave ---
             function triggerAutosave() {
                 clearTimeout(autosaveTimeout);
@@ -434,26 +548,48 @@
 
 
             // --- Canvas Setup ---
-            function resizeCanvas() {
-                const { width, height } = canvasContainer.getBoundingClientRect();
-                [imageBgCanvas, drawingBgCanvas, onionBehindCanvas, animationCanvas, onionAheadCanvas, previewCanvas].forEach(c => {
+            function resizeAndRedraw() {
+                const { width, height } = canvasViewport.getBoundingClientRect();
+                 allCanvases.forEach(c => {
                     c.width = width;
                     c.height = height;
                 });
                 
                 if (!backgroundData.current) {
-                    backgroundData.current = drawingBgCanvas.toDataURL();
+                    // Create a high-res backing canvas
+                    const backingCanvas = document.createElement('canvas');
+                    backingCanvas.width = 1920;
+                    backingCanvas.height = 1080;
+                    backgroundData.current = backingCanvas.toDataURL();
                 }
 
-                drawUploadedBackground();
                 redrawAll();
             }
 
-             function redrawAll() {
-                loadFrame(currentFrameIndex);
-                loadBackground();
-                renderOnionSkins();
-                frames.forEach((_, i) => updateTimelineThumbnail(i));
+            function redrawAll() {
+                const contexts = [imageBgCtx, drawingBgCtx, animCtx, onionBehindCtx, onionAheadCtx, previewCtx];
+                contexts.forEach(ctx => {
+                    ctx.save();
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    ctx.translate(transform.panX, transform.panY);
+                    ctx.scale(transform.scale, transform.scale);
+                });
+
+                if (uploadedBackgroundImage) imageBgCtx.drawImage(uploadedBackgroundImage, 0, 0);
+
+                const bgImg = new Image();
+                bgImg.src = backgroundData.current;
+                drawingBgCtx.drawImage(bgImg, 0, 0);
+
+                const frameImg = new Image();
+                if (frames[currentFrameIndex]) {
+                    frameImg.src = frames[currentFrameIndex].current;
+                    animCtx.drawImage(frameImg, 0, 0);
+                }
+                
+                renderOnionSkins(true);
+
+                contexts.forEach(ctx => ctx.restore());
             }
             
             // --- History (Undo/Redo) ---
@@ -479,17 +615,10 @@
                 history.redoStack.push(history.current);
                 history.current = history.undoStack.pop();
                 
-                const targetCtx = activeLayer === 'animation' ? animCtx : drawingBgCtx;
-                const img = new Image();
-                img.onload = () => {
-                    clearCanvas(targetCtx);
-                    targetCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
-                    if (activeLayer === 'animation') {
-                        updateTimelineThumbnail(currentFrameIndex);
-                        renderOnionSkins();
-                    }
-                };
-                img.src = history.current;
+                if (activeLayer === 'animation') {
+                    updateTimelineThumbnail(currentFrameIndex);
+                }
+                redrawAll();
                 updateUndoRedoButtons();
                 triggerAutosave();
             }
@@ -499,18 +628,11 @@
                 if (!history || history.redoStack.length === 0) return;
                 history.undoStack.push(history.current);
                 history.current = history.redoStack.pop();
-                
-                const targetCtx = activeLayer === 'animation' ? animCtx : drawingBgCtx;
-                const img = new Image();
-                img.onload = () => {
-                    clearCanvas(targetCtx);
-                    targetCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
-                     if (activeLayer === 'animation') {
-                        updateTimelineThumbnail(currentFrameIndex);
-                        renderOnionSkins();
-                    }
-                };
-                img.src = history.current;
+
+                if (activeLayer === 'animation') {
+                   updateTimelineThumbnail(currentFrameIndex);
+                }
+                redrawAll();
                 updateUndoRedoButtons();
                 triggerAutosave();
             }
@@ -528,32 +650,57 @@
 
 
             // --- Drawing Logic ---
-            function getMousePos(e) {
+            function getTransformedMousePos(e) {
                 const rect = animationCanvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
+                const screenX = clientX - rect.left;
+                const screenY = clientY - rect.top;
+
                 return {
-                    x: (clientX - rect.left),
-                    y: (clientY - rect.top)
+                    x: (screenX - transform.panX) / transform.scale,
+                    y: (screenY - transform.panY) / transform.scale,
                 };
             }
+
+            function getDrawingContext() {
+                const backingCanvas = document.createElement('canvas');
+                const backingCtx = backingCanvas.getContext('2d');
+                
+                const sourceData = activeLayer === 'animation' ? frames[currentFrameIndex].current : backgroundData.current;
+                const img = new Image();
+                img.src = sourceData;
+                backingCanvas.width = img.width;
+                backingCanvas.height = img.height;
+                backingCtx.drawImage(img, 0, 0);
+                return backingCtx;
+            }
             
-            function getActiveContext() {
-                return activeLayer === 'animation' ? animCtx : drawingBgCtx;
+            function commitDrawing(backingCtx) {
+                const dataUrl = backingCtx.canvas.toDataURL();
+                if (activeLayer === 'animation') {
+                    frames[currentFrameIndex].current = dataUrl;
+                    updateTimelineThumbnail(currentFrameIndex);
+                } else {
+                    backgroundData.current = dataUrl;
+                }
+                redrawAll();
             }
 
+
             function startDrawing(e) {
+                if (isPanning) return;
                 if (e.touches) e.preventDefault();
                 isDrawing = true;
-                const pos = getMousePos(e);
-                const currentCtx = getActiveContext();
+                const pos = getTransformedMousePos(e);
 
                 if (['pencil', 'eraser'].includes(activeTool)) {
                     pushUndoState();
-                    currentCtx.beginPath();
-                    currentCtx.moveTo(pos.x, pos.y);
-                    draw(e);
+                    const backingCtx = getDrawingContext();
+                    backingCtx.beginPath();
+                    backingCtx.moveTo(pos.x, pos.y);
+                    draw(e, backingCtx);
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     shapeStartPos = pos;
                 } else if (activeTool === 'lasso') {
@@ -562,22 +709,22 @@
                 }
             }
             
-            function draw(e) {
-                if (!isDrawing) return;
+            function draw(e, backingCtx) {
+                if (!isDrawing || isPanning) return;
                 if (e.touches) e.preventDefault();
-                const pos = getMousePos(e);
-                const currentCtx = getActiveContext();
+                const pos = getTransformedMousePos(e);
                 
                 if (['pencil', 'eraser'].includes(activeTool)) {
-                    currentCtx.lineWidth = brushSizeSlider.value;
-                    currentCtx.lineCap = 'round';
-                    currentCtx.lineJoin = 'round';
-                    currentCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                    currentCtx.strokeStyle = colorPicker.value;
-                    currentCtx.lineTo(pos.x, pos.y);
-                    currentCtx.stroke();
-                    currentCtx.beginPath();
-                    currentCtx.moveTo(pos.x, pos.y);
+                    backingCtx.lineWidth = brushSizeSlider.value;
+                    backingCtx.lineCap = 'round';
+                    backingCtx.lineJoin = 'round';
+                    backingCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                    backingCtx.strokeStyle = colorPicker.value;
+                    backingCtx.lineTo(pos.x, pos.y);
+                    backingCtx.stroke();
+                    backingCtx.beginPath();
+                    backingCtx.moveTo(pos.x, pos.y);
+                    commitDrawing(backingCtx); // Inefficient but simple for now
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     drawShapePreview(pos);
                 } else if (activeTool === 'lasso') {
@@ -587,36 +734,35 @@
             }
 
             function stopDrawing(e) {
-                if (!isDrawing) return;
+                if (!isDrawing || isPanning) return;
                 isDrawing = false;
-                const currentCtx = getActiveContext();
                 
-                if (['pencil', 'eraser'].includes(activeTool)) {
-                    currentCtx.beginPath();
-                } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
+                if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     pushUndoState();
-                    drawShape(getMousePos(e));
+                    const backingCtx = getDrawingContext();
+                    drawShape(getTransformedMousePos(e), backingCtx);
+                    commitDrawing(backingCtx);
                     shapeStartPos = null;
                 } else if (activeTool === 'lasso') {
                     if (lassoPoints.length > 2) {
                         pushUndoState();
-                        applyLassoDelete();
+                        const backingCtx = getDrawingContext();
+                        applyLassoDelete(backingCtx);
+                        commitDrawing(backingCtx);
                     }
                     lassoPoints = [];
                     clearCanvas(previewCtx);
                 }
                 
-                if (activeLayer === 'animation') {
-                    saveFrame();
-                } else {
-                    saveBackground();
-                }
                 triggerAutosave();
             }
             
             // --- Shape Drawing Logic ---
             function drawShapePreview(currentPos) {
                 clearCanvas(previewCtx);
+                previewCtx.save();
+                previewCtx.translate(transform.panX, transform.panY);
+                previewCtx.scale(transform.scale, transform.scale);
                 previewCtx.lineWidth = brushSizeSlider.value;
                 previewCtx.strokeStyle = colorPicker.value;
                 previewCtx.beginPath();
@@ -636,64 +782,66 @@
                     previewCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
                 }
                 previewCtx.stroke();
+                previewCtx.restore();
             }
 
-            function drawShape(endPos) {
+            function drawShape(endPos, ctx) {
                 clearCanvas(previewCtx);
-                const currentCtx = getActiveContext();
-                currentCtx.lineWidth = brushSizeSlider.value;
-                currentCtx.strokeStyle = colorPicker.value;
-                currentCtx.lineCap = 'round';
-                currentCtx.lineJoin = 'round';
-                currentCtx.globalCompositeOperation = 'source-over';
-                currentCtx.beginPath();
+                ctx.lineWidth = brushSizeSlider.value;
+                ctx.strokeStyle = colorPicker.value;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.beginPath();
 
                 const start = shapeStartPos;
                 const end = endPos;
 
                 if (activeTool === 'line') {
-                    currentCtx.moveTo(start.x, start.y);
-                    currentCtx.lineTo(end.x, end.y);
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
                 } else if (activeTool === 'rectangle') {
-                    currentCtx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+                    ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
                 } else if (activeTool === 'circle') {
                     const dx = end.x - start.x;
                     const dy = end.y - start.y;
                     const radius = Math.sqrt(dx * dx + dy * dy);
-                    currentCtx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+                    ctx.arc(start.x, start.y, radius, 0, Math.PI * 2);
                 }
-                currentCtx.stroke();
+                ctx.stroke();
             }
 
 
              // --- Lasso Logic ---
             function drawLassoPath() {
-                if (lassoPoints.length < 2) return;
+                 if (lassoPoints.length < 2) return;
                 clearCanvas(previewCtx);
+                previewCtx.save();
+                previewCtx.translate(transform.panX, transform.panY);
+                previewCtx.scale(transform.scale, transform.scale);
                 previewCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                previewCtx.lineWidth = 2;
-                previewCtx.setLineDash([6, 6]);
+                previewCtx.lineWidth = 2 / transform.scale;
+                previewCtx.setLineDash([6 / transform.scale, 6 / transform.scale]);
                 previewCtx.beginPath();
                 previewCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
                 for (let i = 1; i < lassoPoints.length; i++) {
                     previewCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
                 }
                 previewCtx.stroke();
-                previewCtx.setLineDash([]);
+                previewCtx.restore();
             }
 
-            function applyLassoDelete() {
-                const currentCtx = getActiveContext();
-                currentCtx.save();
-                currentCtx.beginPath();
-                currentCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+            function applyLassoDelete(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
                 for (let i = 1; i < lassoPoints.length; i++) {
-                    currentCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+                    ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
                 }
-                currentCtx.closePath();
-                currentCtx.clip();
-                currentCtx.clearRect(0, 0, animationCanvas.width, animationCanvas.height);
-                currentCtx.restore();
+                ctx.closePath();
+                ctx.clip();
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.restore();
             }
 
             // --- Project Save/Load ---
@@ -732,34 +880,27 @@
 
             // --- Frame Management ---
             function saveFrame() {
-                if (!frames[currentFrameIndex]) return;
-                frames[currentFrameIndex].current = animationCanvas.toDataURL();
-                updateTimelineThumbnail(currentFrameIndex);
+                // This is handled by commitDrawing
             }
 
             function loadFrame(index) {
-                clearCanvas(animCtx);
-                if (index < 0 || index >= frames.length) return;
-                const img = new Image();
-                img.onload = () => { animCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height); };
-                img.src = frames[index].current;
+                // This is handled by redrawAll
             }
-
+            
             function saveBackground() {
-                backgroundData.current = drawingBgCanvas.toDataURL();
+                // This is handled by commitDrawing
             }
             
             function loadBackground() {
-                 clearCanvas(drawingBgCtx);
-                 if (!backgroundData.current) return;
-                 const img = new Image();
-                 img.onload = () => { drawingBgCtx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height); };
-                 img.src = backgroundData.current;
+                // This is handled by redrawAll
             }
 
 
             function clearCanvas(context) {
+                context.save();
+                context.setTransform(1, 0, 0, 1, 0, 0);
                 context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+                context.restore();
             }
 
             // --- Timeline UI ---
@@ -796,11 +937,9 @@
                 frameContainer.appendChild(copyBtn);
                 frameElement.addEventListener('click', () => {
                     if (isPlaying) return;
-                    if(activeLayer === 'animation') saveFrame(); else saveBackground();
                     currentFrameIndex = index;
-                    loadFrame(index);
+                    redrawAll();
                     updateActiveFrame();
-                    renderOnionSkins();
                     updateUndoRedoButtons();
                 });
                 return frameContainer;
@@ -810,8 +949,8 @@
                 const thumbCanvas = timeline.querySelector(`canvas[data-index='${index}']`);
                 if (!thumbCanvas || !frames[index] || !frames[index].current) return;
                 const thumbCtx = thumbCanvas.getContext('2d');
-                thumbCanvas.width = thumbCanvas.offsetWidth * 2;
-                thumbCanvas.height = thumbCanvas.offsetHeight * 2;
+                thumbCanvas.width = 160;
+                thumbCanvas.height = 90;
                 const img = new Image();
                 img.onload = () => {
                     thumbCtx.fillStyle = 'white';
@@ -829,19 +968,21 @@
             }
             
             function addNewFrame() {
-                saveFrame();
-                const newCanvas = document.createElement('canvas');
-                newCanvas.width = animationCanvas.width; newCanvas.height = animationCanvas.height;
+                const backingCanvas = document.createElement('canvas');
+                let img = new Image();
+                img.src = frames[0].current;
+                backingCanvas.width = img.width;
+                backingCanvas.height = img.height;
+
                 const newFrame = {
-                    current: newCanvas.toDataURL(),
+                    current: backingCanvas.toDataURL(),
                     undoStack: [],
                     redoStack: []
                 };
                 frames.splice(currentFrameIndex + 1, 0, newFrame);
                 currentFrameIndex++;
-                loadFrame(currentFrameIndex);
+                redrawAll();
                 renderTimeline();
-                renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
                 triggerAutosave();
@@ -851,9 +992,8 @@
                 if (frames.length <= 1) return;
                 frames.splice(index, 1);
                 currentFrameIndex = Math.max(0, currentFrameIndex >= index ? currentFrameIndex - 1 : currentFrameIndex);
-                loadFrame(currentFrameIndex);
+                redrawAll();
                 renderTimeline();
-                renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
                 triggerAutosave();
@@ -868,9 +1008,8 @@
                 };
                 frames.splice(index + 1, 0, newFrame);
                 currentFrameIndex = index + 1;
-                loadFrame(currentFrameIndex);
+                redrawAll();
                 renderTimeline();
-                renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
                 triggerAutosave();
@@ -904,7 +1043,7 @@
                 if (timeSinceLastFrame > frameInterval) {
                     lastFrameTime = currentTime - (timeSinceLastFrame % frameInterval);
                     currentFrameIndex = (currentFrameIndex + 1) % frames.length;
-                    loadFrame(currentFrameIndex);
+                    redrawAll();
                     updateActiveFrame();
                 }
             }
@@ -920,13 +1059,17 @@
             // --- GIF Export ---
             async function exportToGif() {
                 loadingModal.classList.remove('hidden');
+                 const backingCanvas = document.createElement('canvas');
+                let tempImg = new Image();
+                tempImg.src = frames[0].current;
+                backingCanvas.width = tempImg.width;
+                backingCanvas.height = tempImg.height;
+
                 const gif = new GIF({
-                    workers: 2, quality: 10, width: animationCanvas.width, height: animationCanvas.height,
+                    workers: 2, quality: 10, width: backingCanvas.width, height: backingCanvas.height,
                     workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
                 });
-                const renderCanvas = document.createElement('canvas');
-                renderCanvas.width = animationCanvas.width; renderCanvas.height = animationCanvas.height;
-                const renderCtx = renderCanvas.getContext('2d');
+                const renderCtx = backingCanvas.getContext('2d');
                 
                 const bgDrawnImage = new Image();
                 bgDrawnImage.src = backgroundData.current;
@@ -936,14 +1079,14 @@
                     await new Promise(resolve => {
                         const frameImg = new Image();
                         frameImg.onload = () => {
-                            renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
+                            renderCtx.clearRect(0,0,backingCanvas.width, backingCanvas.height);
                             // Composite background layers
-                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
-                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
-                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, backingCanvas.width, backingCanvas.height);
+                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,backingCanvas.width, backingCanvas.height); }
+                            renderCtx.drawImage(bgDrawnImage, 0, 0, backingCanvas.width, backingCanvas.height);
                             // Draw animation frame on top
-                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
-                            gif.addFrame(renderCanvas, { delay: 1000 / fpsSlider.value, copy: true });
+                            renderCtx.drawImage(frameImg, 0, 0, backingCanvas.width, backingCanvas.height);
+                            gif.addFrame(backingCanvas, { delay: 1000 / fpsSlider.value, copy: true });
                             resolve();
                         };
                         frameImg.src = frame.current;
@@ -961,8 +1104,7 @@
 
             // --- Background Image ---
              function drawUploadedBackground() {
-                clearCanvas(imageBgCtx);
-                if (uploadedBackgroundImage) { imageBgCtx.drawImage(uploadedBackgroundImage, 0, 0, imageBgCanvas.width, imageBgCanvas.height); } 
+                // handled by redrawAll
             }
             function handleBackgroundUpload(e) {
                 const file = e.target.files[0];
@@ -970,7 +1112,7 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground(); triggerAutosave();};
+                    img.onload = () => { uploadedBackgroundImage = img; redrawAll(); triggerAutosave();};
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
@@ -978,19 +1120,26 @@
             }
             function clearBackground() { 
                 uploadedBackgroundImage = null; 
-                drawUploadedBackground();
                 pushUndoState(); // for drawing bg
+                let img = new Image();
+                img.src = backgroundData.current;
                 const blankBg = document.createElement('canvas');
-                blankBg.width = animationCanvas.width; blankBg.height = animationCanvas.height;
+                blankBg.width = img.width;
+                blankBg.height = img.height;
                 backgroundData.current = blankBg.toDataURL();
-                loadBackground();
+                redrawAll();
                 triggerAutosave();
              }
 
              // --- Onion Skinning ---
-            function renderOnionSkins() {
-                clearCanvas(onionBehindCtx);
-                clearCanvas(onionAheadCtx);
+            function renderOnionSkins(isRedrawing) {
+                if (!isRedrawing) {
+                    redrawAll();
+                    return;
+                }
+                onionBehindCtx.clearRect(0, 0, onionBehindCtx.canvas.width, onionBehindCtx.canvas.height);
+                onionAheadCtx.clearRect(0, 0, onionAheadCtx.canvas.width, onionAheadCtx.canvas.height);
+
                 if (!onionSkinCheckbox.checked || activeLayer !== 'animation') return;
 
                 const drawSkin = (ctx, frameIndex) => {
@@ -998,7 +1147,7 @@
                     const img = new Image();
                     img.onload = () => {
                         ctx.globalAlpha = 0.3;
-                        ctx.drawImage(img, 0, 0, animationCanvas.width, animationCanvas.height);
+                        ctx.drawImage(img, 0, 0);
                         ctx.globalAlpha = 1.0;
                     };
                     img.src = frames[frameIndex].current;
@@ -1023,8 +1172,87 @@
                 });
             }
 
+            // --- Zoom and Pan ---
+            function handleWheel(e) {
+                e.preventDefault();
+                const zoomFactor = 1.1;
+                const oldScale = transform.scale;
+                
+                if (e.deltaY < 0) { // Zoom in
+                    transform.scale = Math.min(transform.scale * zoomFactor, 10);
+                } else { // Zoom out
+                    transform.scale = Math.max(transform.scale / zoomFactor, 0.1);
+                }
+                
+                const rect = canvasViewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                transform.panX = mouseX - (mouseX - transform.panX) * (transform.scale / oldScale);
+                transform.panY = mouseY - (mouseY - transform.panY) * (transform.scale / oldScale);
+                
+                updateZoomDisplay();
+                redrawAll();
+            }
+
+            function startPan(e) {
+                 if (e.button === 1 || e.which === 2) { // Middle mouse button
+                    isPanning = true;
+                    lastPanPosition = { x: e.clientX, y: e.clientY };
+                    canvasViewport.style.cursor = 'grabbing';
+                }
+            }
+            
+            function doPan(e) {
+                if (isPanning) {
+                    const dx = e.clientX - lastPanPosition.x;
+                    const dy = e.clientY - lastPanPosition.y;
+                    transform.panX += dx;
+                    transform.panY += dy;
+                    lastPanPosition = { x: e.clientX, y: e.clientY };
+                    redrawAll();
+                }
+            }
+
+            function endPan(e) {
+                isPanning = false;
+                canvasViewport.style.cursor = 'default';
+            }
+            
+            function updateZoomDisplay() {
+                zoomLevelDisplay.textContent = `${Math.round(transform.scale * 100)}%`;
+            }
+
+            function resetZoom() {
+                transform.scale = 1;
+                const rect = canvasViewport.getBoundingClientRect();
+                const canvasRect = document.querySelector('.canvas-container').getBoundingClientRect();
+                transform.panX = (rect.width - canvasRect.width) / 2;
+                transform.panY = (rect.height - canvasRect.height) / 2;
+
+                updateZoomDisplay();
+                redrawAll();
+            }
+
+
 
             // --- Event Listeners ---
+            canvasViewport.addEventListener('wheel', handleWheel);
+            canvasViewport.addEventListener('mousedown', startPan);
+            window.addEventListener('mousemove', doPan);
+            window.addEventListener('mouseup', endPan);
+            
+            zoomInBtn.addEventListener('click', () => {
+                const rect = canvasViewport.getBoundingClientRect();
+                handleWheel({ preventDefault: () => {}, deltaY: -1, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                 const rect = canvasViewport.getBoundingClientRect();
+                 handleWheel({ preventDefault: () => {}, deltaY: 1, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
+            });
+            zoomResetBtn.addEventListener('click', resetZoom);
+
+
             animationCanvas.addEventListener('mousedown', startDrawing);
             animationCanvas.addEventListener('mousemove', draw);
             window.addEventListener('mouseup', stopDrawing);
@@ -1088,7 +1316,7 @@
             });
 
             exportGifBtn.addEventListener('click', exportToGif);
-            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('resize', resizeAndRedraw);
             closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
             showInstructionsBtn.addEventListener('click', () => instructionsModal.classList.remove('hidden'));
             saveProjectBtn.addEventListener('click', saveProjectToFile);
@@ -1117,6 +1345,34 @@
                 localStorage.removeItem('autosavedAnimationProject');
                 autosaveNotification.classList.add('hidden');
             });
+            
+            // Gemini Modal Listeners
+            generateBgBtn.addEventListener('click', () => geminiModal.classList.remove('hidden'));
+            closeGeminiModalBtn.addEventListener('click', () => geminiModal.classList.add('hidden'));
+            generateGeminiBtn.addEventListener('click', () => {
+                const prompt = geminiPromptInput.value;
+                if (prompt) {
+                    generateImageWithGemini(prompt);
+                }
+            });
+            useGeminiImageBtn.addEventListener('click', () => {
+                const imgSrc = geminiImageResult.src;
+                if (imgSrc) {
+                    const img = new Image();
+                    img.onload = () => {
+                        uploadedBackgroundImage = img;
+                        redrawAll();
+                        triggerAutosave();
+                    };
+                    img.src = imgSrc;
+                    geminiModal.classList.add('hidden');
+                    // Reset modal state
+                    geminiImageResult.src = '';
+                    geminiResultContainer.classList.add('hidden');
+                    useGeminiImageBtn.classList.add('hidden');
+                    geminiPromptInput.value = '';
+                }
+            });
 
 
             // --- Initialization ---
@@ -1138,24 +1394,23 @@
             }
             
             function initializeNewProject() {
-                const blankCanvas = document.createElement('canvas');
-                blankCanvas.width = 1280; blankCanvas.height = 720;
+                 const backingCanvas = document.createElement('canvas');
+                backingCanvas.width = 1920; 
+                backingCanvas.height = 1080;
                 
                 frames = [{
-                    current: blankCanvas.toDataURL(),
+                    current: backingCanvas.toDataURL(),
                     undoStack: [],
                     redoStack: []
                 }];
                 
-                backgroundData.current = blankCanvas.toDataURL();
+                backgroundData.current = backingCanvas.toDataURL();
                 
-                resizeCanvas();
+                resizeAndRedraw();
                 renderTimeline();
-                loadFrame(0);
-                loadBackground();
-                updateTimelineThumbnail(0);
                 updateUndoRedoButtons();
                 updateTimelineInfo();
+                resetZoom();
             }
 
             initialize();
@@ -1163,6 +1418,4 @@
     </script>
 </body>
 </html>
-
-
 
