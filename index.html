@@ -445,6 +445,7 @@
             let autosaveTimeout;
             let isPanning = false;
             let lastPanPosition = { x: 0, y: 0 };
+            let currentDrawingContext = null;
             
             let transform = {
                 scale: 1,
@@ -703,10 +704,10 @@
 
                 if (['pencil', 'eraser'].includes(activeTool)) {
                     pushUndoState();
-                    const backingCtx = getDrawingContext();
-                    backingCtx.beginPath();
-                    backingCtx.moveTo(pos.x, pos.y);
-                    draw(e, backingCtx);
+                    currentDrawingContext = getDrawingContext();
+                    currentDrawingContext.beginPath();
+                    currentDrawingContext.moveTo(pos.x, pos.y);
+                    draw(e);
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     shapeStartPos = pos;
                 } else if (activeTool === 'lasso') {
@@ -715,12 +716,15 @@
                 }
             }
             
-            function draw(e, backingCtx) {
+            function draw(e) {
                 if (!isDrawing || isPanning) return;
                 if (e.touches) e.preventDefault();
                 const pos = getTransformedMousePos(e);
                 
                 if (['pencil', 'eraser'].includes(activeTool)) {
+                    const backingCtx = currentDrawingContext;
+                    if (!backingCtx) return;
+
                     backingCtx.lineWidth = brushSizeSlider.value;
                     backingCtx.lineCap = 'round';
                     backingCtx.lineJoin = 'round';
@@ -730,7 +734,7 @@
                     backingCtx.stroke();
                     backingCtx.beginPath();
                     backingCtx.moveTo(pos.x, pos.y);
-                    commitDrawing(backingCtx); // Inefficient but simple for now
+                    commitDrawing(backingCtx);
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     drawShapePreview(pos);
                 } else if (activeTool === 'lasso') {
@@ -743,7 +747,11 @@
                 if (!isDrawing || isPanning) return;
                 isDrawing = false;
                 
-                if (['line', 'rectangle', 'circle'].includes(activeTool)) {
+                if (['pencil', 'eraser'].includes(activeTool)) {
+                    if (currentDrawingContext) {
+                        currentDrawingContext.beginPath();
+                    }
+                } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     pushUndoState();
                     const backingCtx = getDrawingContext();
                     drawShape(getTransformedMousePos(e), backingCtx);
@@ -760,6 +768,7 @@
                     clearCanvas(previewCtx);
                 }
                 
+                currentDrawingContext = null;
                 triggerAutosave();
             }
             
@@ -1426,6 +1435,4 @@
     </script>
 </body>
 </html>
-
-
 
