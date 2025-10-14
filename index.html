@@ -255,7 +255,7 @@
                 </div>
             </div>
             <!-- Zoom Controls -->
-            <div class="absolute bottom-4 right-4 md:right-8 bg-slate-700 rounded-lg shadow-lg p-1 flex items-center gap-1 text-white">
+            <div class="absolute bottom-4 right-4 md:right-8 bg-slate-700 rounded-lg shadow-lg p-1 flex items-center gap-1 text-white z-10">
                 <button id="zoom-out-btn" class="w-8 h-8 flex items-center justify-center hover:bg-slate-600 rounded-md">-</button>
                 <span id="zoom-level-display" class="text-xs font-mono w-12 text-center">100%</span>
                 <button id="zoom-in-btn" class="w-8 h-8 flex items-center justify-center hover:bg-slate-600 rounded-md">+</button>
@@ -707,7 +707,18 @@
                     currentDrawingContext = getDrawingContext();
                     currentDrawingContext.beginPath();
                     currentDrawingContext.moveTo(pos.x, pos.y);
-                    draw(e);
+                    // Also draw the first dot
+                    currentDrawingContext.lineWidth = brushSizeSlider.value;
+                    currentDrawingContext.lineCap = 'round';
+                    currentDrawingContext.lineJoin = 'round';
+                    currentDrawingContext.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                    currentDrawingContext.strokeStyle = colorPicker.value;
+                    currentDrawingContext.lineTo(pos.x, pos.y);
+                    currentDrawingContext.stroke();
+                    // Live preview the dot
+                    clearCanvas(previewCtx);
+                    previewCtx.drawImage(currentDrawingContext.canvas, 0, 0);
+
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     shapeStartPos = pos;
                 } else if (activeTool === 'lasso') {
@@ -722,19 +733,22 @@
                 const pos = getTransformedMousePos(e);
                 
                 if (['pencil', 'eraser'].includes(activeTool)) {
-                    const backingCtx = currentDrawingContext;
-                    if (!backingCtx) return;
+                    if (!currentDrawingContext) return; // Safety check
 
-                    backingCtx.lineWidth = brushSizeSlider.value;
-                    backingCtx.lineCap = 'round';
-                    backingCtx.lineJoin = 'round';
-                    backingCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
-                    backingCtx.strokeStyle = colorPicker.value;
-                    backingCtx.lineTo(pos.x, pos.y);
-                    backingCtx.stroke();
-                    backingCtx.beginPath();
-                    backingCtx.moveTo(pos.x, pos.y);
-                    commitDrawing(backingCtx);
+                    currentDrawingContext.lineWidth = brushSizeSlider.value;
+                    currentDrawingContext.lineCap = 'round';
+                    currentDrawingContext.lineJoin = 'round';
+                    currentDrawingContext.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
+                    currentDrawingContext.strokeStyle = colorPicker.value;
+                    currentDrawingContext.lineTo(pos.x, pos.y);
+                    currentDrawingContext.stroke();
+                    currentDrawingContext.beginPath();
+                    currentDrawingContext.moveTo(pos.x, pos.y);
+                    
+                    // Live preview on the preview canvas
+                    clearCanvas(previewCtx);
+                    previewCtx.drawImage(currentDrawingContext.canvas, 0, 0);
+
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     drawShapePreview(pos);
                 } else if (activeTool === 'lasso') {
@@ -747,9 +761,11 @@
                 if (!isDrawing || isPanning) return;
                 isDrawing = false;
                 
+                clearCanvas(previewCtx); // Clear preview on mouse up
+
                 if (['pencil', 'eraser'].includes(activeTool)) {
                     if (currentDrawingContext) {
-                        currentDrawingContext.beginPath();
+                        commitDrawing(currentDrawingContext);
                     }
                 } else if (['line', 'rectangle', 'circle'].includes(activeTool)) {
                     pushUndoState();
@@ -765,7 +781,6 @@
                         commitDrawing(backingCtx);
                     }
                     lassoPoints = [];
-                    clearCanvas(previewCtx);
                 }
                 
                 currentDrawingContext = null;
