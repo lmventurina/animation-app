@@ -305,14 +305,12 @@
             </div>
         </div>
     </footer>
-    <!-- GIF Export library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     
     <!-- Modal for loading spinner -->
     <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
         <div class="bg-slate-800 p-8 rounded-lg shadow-xl text-center border border-slate-700">
             <div class="loader mx-auto"></div>
-            <p id="loading-text" class="mt-4 text-lg font-medium text-white">Generating GIF...</p>
+            <p id="loading-text" class="mt-4 text-lg font-medium text-white">Generating...</p>
         </div>
     </div>
 
@@ -322,9 +320,8 @@
              <button id="close-export-modal-btn" class="absolute top-2 right-2 text-gray-400 hover:text-white">&times;</button>
             <h2 class="text-2xl font-bold mb-6 text-center">Export Animation</h2>
             <div class="flex flex-col gap-4">
-                 <button id="export-gif-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as GIF</button>
                  <button id="export-webm-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as WebM</button>
-                 <button id="export-png-sequence-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as PNG Sequence</button>
+                 <button id="export-apng-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as APNG</button>
             </div>
         </div>
     </div>
@@ -343,150 +340,15 @@
                 <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
                 <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
                 <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
-                <li><b>Export GIF:</b> When you're finished, use the 'Export' button to save your animation as a downloadable .gif file or a sequence of .png files.</li>
+                <li><b>Export:</b> When you're finished, use the 'Export' button to save your animation as a downloadable .webm video or an animated .png file.</li>
             </ol>
             <div class="mt-8 text-center">
                 <button id="close-instructions-modal" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-8 rounded-lg">Got it!</button>
             </div>
         </div>
     </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/apng-js/dist/apng-js.min.js"></script>
     <script>
-        // Inlined gif.worker.js to prevent CORS errors
-        const GIF_WORKER_SOURCE = `
-            var NeuQuant = (function() {
-                function NeuQuant(pixels, samplefac) {
-                    var network;
-                    var netindex;
-                    var bias;
-                    var freq;
-                    var radpower;
-                    this.netsize = 256;
-                    this.specials = 3;
-                    this.netbiasshift = 4;
-                    this.maxnetpos = this.netsize - 1;
-                    this.initrad = this.netsize >> 3;
-                    this.radiusbiasshift = 6;
-                    this.radiusbias = 1 << this.radiusbiasshift;
-                    this.initradius = this.initrad * this.radiusbias;
-                    this.radiusdec = 30;
-                    this.alphabiasshift = 10;
-                    this.initalpha = 1 << this.alphabiasshift;
-                    this.radbiasshift = 8;
-                    this.radbias = 1 << this.radbiasshift;
-                    this.alpharadbshift = this.alphabiasshift + this.radbiasshift;
-                    this.alpharadbias = 1 << this.alpharadbshift;
-                    this.pixels = pixels;
-                    this.samplefac = samplefac;
-                    this.network = new Array(this.netsize);
-                    for (var i = 0; i < this.netsize; i++) {
-                        this.network[i] = new Array(4);
-                        var p = this.network[i];
-                        p[0] = p[1] = p[2] = (i << (this.netbiasshift + 8)) / this.netsize;
-                        this.freq[i] = (1 << this.netbiasshift) / this.netsize;
-                        this.bias[i] = 0;
-                    }
-                }
-                NeuQuant.prototype = {
-                    learn: function () {
-                        var i,j,b,g,r;
-                        var radius, rad, alpha, step, delta, samplepixels;
-                        var p, pix, lim;
-                        samplepixels = this.pixels.length / 3;
-                        lim = samplepixels;
-                        step = lim / 100;
-                        alpha = this.initalpha;
-                        radius = this.initradius;
-                        rad = radius >> this.radiusbiasshift;
-                        if (rad <= 1) rad = 0;
-                        for (i = 0; i < rad; i++) this.radpower[i] = alpha * (((rad * rad - i * i) * this.radbias) / (rad * rad));
-                        i = 0;
-                        j = 0;
-                        while(j < lim) {
-                            b = (this.pixels[j++] & 0xff) << this.netbiasshift;
-                            g = (this.pixels[j++] & 0xff) << this.netbiasshift;
-                            r = (this.pixels[j++] & 0xff) << this.netbiasshift;
-                            p = this.contest(b, g, r);
-                            this.altersingle(alpha, p, b, g, r);
-                            if (rad != 0) this.alterneigh(rad, p, b, g, r);
-                            if (j % step == 0) {
-                                alpha -= alpha / this.radiusdec;
-                                radius -= radius / this.radiusdec;
-                                rad = radius >> this.radiusbiasshift;
-                                if (rad <= 1) rad = 0;
-                                for (i = 0; i < rad; i++) this.radpower[i] = alpha * (((rad * rad - i * i) * this.radbias) / (rad * rad));
-                            }
-                        }
-                    },
-                };
-                return NeuQuant;
-            }());
-            var LZWEncoder = (function() {
-                function LZWEncoder(width, height, pixels, color_depth) {
-                    var accum = new Uint8Array(256);
-                    var htab = new Int32Array(5003);
-                    var codetab = new Int32Array(5003);
-                    var cur_accum, cur_bits = 0;
-                    var a_count;
-                    var free_ent = 0;
-                    var maxcode;
-                    var ClearCode, EOFCode;
-                    this.encode = function(os) {
-                        os.writeByte(initCodeSize);
-                        a_count = 0;
-                        var ent = nextPixel();
-                        var hshift = 0;
-                        for (var fcode = htab.length; fcode < 65536; fcode *= 2) ++hshift;
-                        hshift = 8 - hshift;
-                        var hsize_reg = htab.length;
-                        cl_hash(hsize_reg);
-                        output(ClearCode, os);
-                        outer_loop: while ((c = nextPixel()) != -1) {
-                            fcode = (c << 8) + ent;
-                            i = (c << hshift) ^ ent;
-                            if (htab[i] == fcode) {
-                                ent = codetab[i];
-                                continue;
-                            } else if (htab[i] >= 0) {
-                                var disp = hsize_reg - i;
-                                if (i === 0) disp = 1;
-                                do {
-                                    if ((i -= disp) < 0) i += hsize_reg;
-                                    if (htab[i] == fcode) {
-                                        ent = codetab[i];
-                                        continue outer_loop;
-                                    }
-                                } while (htab[i] >= 0);
-                            }
-                            output(ent, os);
-                            ent = c;
-                            if (free_ent < maxmaxcode) {
-                                codetab[i] = free_ent++;
-                                htab[i] = fcode;
-                            } else cl_block(os);
-                        }
-                        output(ent, os);
-                        output(EOFCode, os);
-                    };
-                }
-                return LZWEncoder;
-            }());
-            self.onmessage = function(e) {
-                var data = e.data;
-                var width = data.width;
-                var height = data.height;
-                var pixels = data.pixels;
-                var encoder = new LZWEncoder(width, height, pixels, data.color_depth);
-                var stream = {
-                    writeByte: function(c) { this.bytes.push(c) },
-                    bytes: []
-                };
-                encoder.encode(stream);
-                postMessage(stream.bytes);
-            };
-        `;
-
-
         document.addEventListener('DOMContentLoaded', () => {
             const viewport = document.getElementById('viewport');
             const canvasContainer = document.querySelector('.canvas-container');
@@ -537,9 +399,8 @@
             const exportBtn = document.getElementById('export-btn');
             const exportModal = document.getElementById('export-modal');
             const closeExportModalBtn = document.getElementById('close-export-modal-btn');
-            const exportGifBtn = document.getElementById('export-gif-btn');
             const exportWebmBtn = document.getElementById('export-webm-btn');
-            const exportPngSequenceBtn = document.getElementById('export-png-sequence-btn');
+            const exportApngBtn = document.getElementById('export-apng-btn');
             
             const loadingModal = document.getElementById('loading-modal');
             const loadingText = document.getElementById('loading-text');
@@ -1256,53 +1117,6 @@
             }
 
             // --- Export Logic ---
-            async function exportToGif() {
-                exportModal.classList.add('hidden');
-                loadingText.textContent = 'Generating GIF...';
-                loadingModal.classList.remove('hidden');
-
-                const workerBlob = new Blob([GIF_WORKER_SOURCE], { type: 'application/javascript' });
-                const workerUrl = URL.createObjectURL(workerBlob);
-
-                const gif = new GIF({
-                    workers: 2, quality: 10, width: animationCanvas.width, height: animationCanvas.height,
-                    workerScript: workerUrl
-                });
-
-                const renderCanvas = document.createElement('canvas');
-                renderCanvas.width = animationCanvas.width; renderCanvas.height = animationCanvas.height;
-                const renderCtx = renderCanvas.getContext('2d');
-                const bgDrawnImage = new Image();
-                bgDrawnImage.src = backgroundData.current;
-                await bgDrawnImage.decode();
-                for (const frame of frames) {
-                    await new Promise(resolve => {
-                        const frameImg = new Image();
-                        frameImg.onload = () => {
-                            renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
-                            // Composite background layers
-                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
-                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
-                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
-                            // Draw animation frame on top
-                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
-                            gif.addFrame(renderCanvas, { delay: 1000 / fpsSlider.value, copy: true });
-                            resolve();
-                        };
-                        frameImg.src = frame.current;
-                    });
-                }
-                gif.on('finished', blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = 'animation.gif'; a.click();
-                    URL.revokeObjectURL(url);
-                    loadingModal.classList.add('hidden');
-                    URL.revokeObjectURL(workerUrl); // Clean up worker
-                });
-                gif.render();
-            }
-
             async function exportAsWebM() {
                 exportModal.classList.add('hidden');
                 loadingText.textContent = 'Generating WebM...';
@@ -1354,37 +1168,32 @@
                         };
                         frameImg.src = frame.current;
                     });
-                    await new Promise(res => setTimeout(res, 1000 / fps));
+                     // Give the recorder time to process the frame
+                    await new Promise(res => setTimeout(res, 1000/fps));
                 }
 
                 recorder.stop();
             }
 
-             async function exportAsPngSequence() {
+            async function exportAsAPNG() {
                 exportModal.classList.add('hidden');
-                loadingText.textContent = 'Exporting PNGs...';
+                loadingText.textContent = 'Generating APNG...';
                 loadingModal.classList.remove('hidden');
 
                 const renderCanvas = document.createElement('canvas');
                 renderCanvas.width = animationCanvas.width;
                 renderCanvas.height = animationCanvas.height;
                 const renderCtx = renderCanvas.getContext('2d');
+                const fps = parseInt(fpsSlider.value, 10);
+                const urls = [];
+
                 const bgDrawnImage = new Image();
                 bgDrawnImage.src = backgroundData.current;
                 await bgDrawnImage.decode();
 
-                function download(url, filename) {
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-
                 for (let i = 0; i < frames.length; i++) {
-                    const frame = frames[i];
-                    await new Promise(resolve => {
+                     const frame = frames[i];
+                     await new Promise(resolve => {
                          const frameImg = new Image();
                          frameImg.onload = () => {
                             renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
@@ -1392,18 +1201,22 @@
                             else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
                             renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
                             renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
-                            
-                            const dataUrl = renderCanvas.toDataURL('image/png');
-                            const frameNumber = String(i + 1).padStart(3, '0');
-                            download(dataUrl, `frame_${frameNumber}.png`);
+                            urls.push(renderCanvas.toDataURL('image/png'));
                             resolve();
                         };
                         frameImg.src = frame.current;
                     });
-                     await new Promise(res => setTimeout(res, 100));
                 }
-
-                loadingModal.classList.add('hidden');
+                
+                const apng = APNG.fromURLS(urls);
+                apng.then(anim => {
+                    const url = anim.toURL();
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'animation.png';
+                    a.click();
+                    loadingModal.classList.add('hidden');
+                });
             }
 
 
@@ -1595,9 +1408,8 @@
             // Export Listeners
             exportBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
             closeExportModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
-            exportGifBtn.addEventListener('click', exportToGif);
             exportWebmBtn.addEventListener('click', exportAsWebM);
-            exportPngSequenceBtn.addEventListener('click', exportAsPngSequence);
+            exportApngBtn.addEventListener('click', exportAsAPNG);
 
 
             window.addEventListener('resize', fitCanvasToViewport);
@@ -1657,3 +1469,4 @@
     </script>
 </body>
 </html>
+
