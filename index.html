@@ -106,12 +106,19 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
+        [contenteditable]:hover {
+            background-color: #334155; /* slate-700 */
+        }
+        [contenteditable]:focus {
+            background-color: #475569; /* slate-600 */
+            outline: 2px solid #4f46e5; /* indigo-600 */
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-gray-300 flex flex-col h-screen overflow-hidden">
     <!-- Header -->
     <header class="bg-slate-800 shadow-md p-3 flex justify-between items-center z-20 border-b border-slate-700 flex-shrink-0">
-        <h1 class="text-lg md:text-xl font-bold text-white whitespace-nowrap">MovingLines</h1>
+        <h1 id="project-title" contenteditable="true" class="text-lg md:text-xl font-bold text-white whitespace-nowrap px-2 rounded-md outline-none" title="Click to rename">MovingLines</h1>
         <!-- Playback Controls -->
         <div class="hidden md:flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
              <button id="play-pause" class="bg-green-600 hover:bg-green-500 text-white font-bold rounded-full h-10 w-10 flex items-center justify-center">
@@ -314,19 +321,6 @@
         </div>
     </div>
 
-    <!-- Export Options Modal -->
-    <div id="export-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-sm w-full border border-slate-700 relative">
-             <button id="close-export-modal-btn" class="absolute top-2 right-2 text-gray-400 hover:text-white">&times;</button>
-            <h2 class="text-2xl font-bold mb-6 text-center">Export Animation</h2>
-            <div class="flex flex-col gap-4">
-                 <button id="export-webm-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as WebM</button>
-                 <button id="export-apng-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as APNG</button>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Instructions Modal -->
     <div id="instructions-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
         <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
@@ -340,14 +334,13 @@
                 <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
                 <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
                 <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
-                <li><b>Export:</b> When you're finished, use the 'Export' button to save your animation as a downloadable .webm video or an animated .png file.</li>
+                <li><b>Export:</b> When you're finished, use the 'Export' button to save your animation as a downloadable .webm video.</li>
             </ol>
             <div class="mt-8 text-center">
                 <button id="close-instructions-modal" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-8 rounded-lg">Got it!</button>
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/apng-js/dist/apng-js.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const viewport = document.getElementById('viewport');
@@ -365,6 +358,7 @@
             const onionAheadCtx = onionAheadCanvas.getContext('2d');
             const previewCtx = previewCanvas.getContext('2d');
             // --- DOM Elements ---
+            const projectTitleEl = document.getElementById('project-title');
             const animationLayerBtn = document.getElementById('animation-layer-btn');
             const backgroundLayerBtn = document.getElementById('background-layer-btn');
             const toolsContainer = document.getElementById('tools-container');
@@ -396,11 +390,7 @@
             const resetZoomBtn = document.getElementById('reset-zoom-btn');
             const zoomLevelDisplay = document.getElementById('zoom-level-display');
             // Export controls
-            const exportBtn = document.getElementById('export-webm-btn');
-            const exportModal = document.getElementById('export-modal');
-            const closeExportModalBtn = document.getElementById('close-export-modal-btn');
             const exportWebmBtn = document.getElementById('export-webm-btn');
-            const exportApngBtn = document.getElementById('export-apng-btn');
             
             const loadingModal = document.getElementById('loading-modal');
             const loadingText = document.getElementById('loading-text');
@@ -446,6 +436,7 @@
 
             function loadProjectData(projectData) {
                 if (!projectData.frames) throw new Error('Invalid project file');
+                projectTitleEl.textContent = projectData.projectName || 'MovingLines';
                 frames = projectData.frames.map(frameDataURL => ({
                     current: frameDataURL, undoStack: [], redoStack: [],
                 }));
@@ -919,7 +910,9 @@
             }
             // --- Project Save/Load ---
             function saveProjectToFile() {
+                const projectName = projectTitleEl.textContent.trim() || 'animation-project';
                 const projectData = {
+                    projectName: projectName,
                     frames: frames.map(f => f.current),
                     drawnBackground: backgroundData.current,
                     uploadedImage: uploadedBackgroundImage ? uploadedBackgroundImage.src : null,
@@ -928,8 +921,9 @@
                 const blob = new Blob([jsonString], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
+                const safeFilename = projectName.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
                 a.href = url;
-                a.download = 'animation-project.anim';
+                a.download = `${safeFilename}.anim`;
                 a.click();
                 URL.revokeObjectURL(url);
             }
@@ -1118,7 +1112,6 @@
 
             // --- Export Logic ---
             async function exportAsWebM() {
-                exportModal.classList.add('hidden');
                 loadingText.textContent = 'Generating WebM...';
                 loadingModal.classList.remove('hidden');
 
@@ -1137,8 +1130,10 @@
                     const blob = new Blob(chunks, { type: 'video/webm' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
+                    const projectName = projectTitleEl.textContent.trim() || 'animation';
+                    const safeFilename = projectName.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
                     a.href = url;
-                    a.download = 'animation.webm';
+                    a.download = `${safeFilename}.webm`;
                     a.click();
                     URL.revokeObjectURL(url);
                     loadingModal.classList.add('hidden');
@@ -1174,51 +1169,6 @@
 
                 recorder.stop();
             }
-
-            async function exportAsAPNG() {
-                exportModal.classList.add('hidden');
-                loadingText.textContent = 'Generating APNG...';
-                loadingModal.classList.remove('hidden');
-
-                const renderCanvas = document.createElement('canvas');
-                renderCanvas.width = animationCanvas.width;
-                renderCanvas.height = animationCanvas.height;
-                const renderCtx = renderCanvas.getContext('2d');
-                const fps = parseInt(fpsSlider.value, 10);
-                const urls = [];
-
-                const bgDrawnImage = new Image();
-                bgDrawnImage.src = backgroundData.current;
-                await bgDrawnImage.decode();
-
-                for (let i = 0; i < frames.length; i++) {
-                     const frame = frames[i];
-                     await new Promise(resolve => {
-                         const frameImg = new Image();
-                         frameImg.onload = () => {
-                            renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
-                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
-                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
-                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
-                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
-                            urls.push(renderCanvas.toDataURL('image/png'));
-                            resolve();
-                        };
-                        frameImg.src = frame.current;
-                    });
-                }
-                
-                APNG.fromURLS(urls, {rate: fps}).then(anim => {
-                    const url = anim.toURL();
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'animation.png';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    loadingModal.classList.add('hidden');
-                });
-            }
-
 
             // --- Background Image ---
              function drawUploadedBackground() {
@@ -1310,6 +1260,18 @@
 
 
             // --- Event Listeners ---
+            projectTitleEl.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    projectTitleEl.blur(); // Unfocus the element
+                }
+            });
+            projectTitleEl.addEventListener('blur', () => {
+                if (projectTitleEl.textContent.trim() === '') {
+                    projectTitleEl.textContent = 'Untitled Project';
+                }
+            });
+
             animationCanvas.addEventListener('dblclick', e => {
                 if (activeTool === 'polygon') {
                     finishPolygon();
@@ -1362,7 +1324,7 @@
             undoBtn.addEventListener('click', undo);
             redoBtn.addEventListener('click', redo);
             window.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT') return;
+                if (e.target.isContentEditable) return;
                  if (e.ctrlKey || e.metaKey) {
                     if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
                     if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
@@ -1406,10 +1368,7 @@
             });
             
             // Export Listeners
-            exportBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
-            closeExportModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
             exportWebmBtn.addEventListener('click', exportAsWebM);
-            exportApngBtn.addEventListener('click', exportAsAPNG);
 
 
             window.addEventListener('resize', fitCanvasToViewport);
@@ -1448,6 +1407,7 @@
                 }
             }
             function initializeNewProject() {
+                projectTitleEl.textContent = 'MovingLines';
                 const blankCanvas = document.createElement('canvas');
                 blankCanvas.width = 1280; blankCanvas.height = 720;
                 frames = [{
