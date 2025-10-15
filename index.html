@@ -91,13 +91,6 @@
     </style>
 </head>
 <body class="bg-slate-900 text-gray-300 flex flex-col h-screen overflow-hidden">
-    <!-- Autosave Notification -->
-    <div id="autosave-notification" class="hidden fixed top-0 left-0 right-0 bg-indigo-600 text-white p-3 text-center z-50 flex justify-center items-center gap-4 shadow-lg">
-        <p>Unsaved work from a previous session found. Would you like to restore it?</p>
-        <button id="restore-autosave" class="bg-green-500 hover:bg-green-400 px-4 py-1 rounded-md text-sm font-semibold">Restore</button>
-        <button id="dismiss-autosave" class="bg-red-500 hover:bg-red-400 px-4 py-1 rounded-md text-sm font-semibold">Dismiss</button>
-    </div>
-
     <!-- Header -->
     <header class="bg-slate-800 shadow-md p-3 flex justify-between items-center z-20 border-b border-slate-700 flex-shrink-0">
         <h1 class="text-lg md:text-xl font-bold text-white whitespace-nowrap">MovingLines</h1>
@@ -594,9 +587,6 @@
             const loadProjectInput = document.getElementById('load-project-input');
             const bgUploadInput = document.getElementById('bg-upload-input');
             const clearBgBtn = document.getElementById('clear-bg-btn');
-            const autosaveNotification = document.getElementById('autosave-notification');
-            const restoreAutosaveBtn = document.getElementById('restore-autosave');
-            const dismissAutosaveBtn = document.getElementById('dismiss-autosave');
             // --- State ---
             let frames = [];
             let backgroundData = {
@@ -615,25 +605,12 @@
             let lastFrameTime = 0;
             let uploadedBackgroundImage = null;
             let lassoPoints = [];
-            let autosaveTimeout;
             const paletteColors = [
                 '#ffffff', '#c2c2c2', '#898989', '#505050', '#000000',
                 '#ff5b5b', '#ff985b', '#ffff5b', '#98ff5b', '#5bff98',
                 '#5bffff', '#5b98ff', '#985bff', '#ff5b98', '#ff5bff'
             ];
-            // --- Autosave ---
-            function triggerAutosave() {
-                clearTimeout(autosaveTimeout);
-                autosaveTimeout = setTimeout(autosaveProject, 2000);
-            }
-            function autosaveProject() {
-                 const projectData = {
-                    frames: frames.map(f => f.current),
-                    drawnBackground: backgroundData.current,
-                    uploadedImage: uploadedBackgroundImage ? uploadedBackgroundImage.src : null,
-                };
-                localStorage.setItem('autosavedAnimationProject', JSON.stringify(projectData));
-            }
+
             function loadProjectData(projectData) {
                 if (!projectData.frames) throw new Error('Invalid project file');
                 frames = projectData.frames.map(frameDataURL => ({
@@ -691,7 +668,6 @@
                      history.undoStack.shift();
                 }
                 updateUndoRedoButtons();
-                triggerAutosave();
             }
             function undo() {
                 const history = getActiveHistory();
@@ -710,7 +686,6 @@
                 };
                 img.src = history.current;
                 updateUndoRedoButtons();
-                triggerAutosave();
             }
             function redo() {
                 const history = getActiveHistory();
@@ -729,7 +704,6 @@
                 };
                 img.src = history.current;
                 updateUndoRedoButtons();
-                triggerAutosave();
             }
             function updateUndoRedoButtons() {
                 const history = getActiveHistory();
@@ -839,7 +813,6 @@
                 } else {
                     saveBackground();
                 }
-                triggerAutosave();
             }
             // --- Shape Drawing Logic ---
             function drawShapePreview(currentPos) {
@@ -939,7 +912,6 @@
 
                 if (activeLayer === 'animation') saveFrame();
                 else saveBackground();
-                triggerAutosave();
             }
 
             // --- Paint Bucket (Fill) Logic ---
@@ -1192,7 +1164,6 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
-                triggerAutosave();
             }
             function deleteFrame(index) {
                 if (frames.length <= 1) return;
@@ -1203,7 +1174,6 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
-                triggerAutosave();
             }
             function copyFrame(index) {
                 const frameToCopy = frames[index];
@@ -1219,7 +1189,6 @@
                 renderOnionSkins();
                 updateUndoRedoButtons();
                 updateTimelineInfo();
-                triggerAutosave();
             }
             // --- Animation Playback ---
             function playAnimation() {
@@ -1314,7 +1283,7 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground(); triggerAutosave();};
+                    img.onload = () => { uploadedBackgroundImage = img; drawUploadedBackground();};
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
@@ -1328,7 +1297,6 @@
                 blankBg.width = animationCanvas.width; blankBg.height = animationCanvas.height;
                 backgroundData.current = blankBg.toDataURL();
                 loadBackground();
-                triggerAutosave();
              }
              // --- Onion Skinning ---
             function renderOnionSkins() {
@@ -1447,35 +1415,14 @@
             colorPicker.addEventListener('input', () => {
                  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
             });
-            restoreAutosaveBtn.addEventListener('click', () => {
-                const savedData = localStorage.getItem('autosavedAnimationProject');
-                if (savedData) {
-                    try {
-                        const projectData = JSON.parse(savedData);
-                        loadProjectData(projectData);
-                    } catch (e) {
-                        console.error("Could not parse autosaved data.", e);
-                    }
-                }
-                autosaveNotification.classList.add('hidden');
-            });
-            dismissAutosaveBtn.addEventListener('click', () => {
-                localStorage.removeItem('autosavedAnimationProject');
-                autosaveNotification.classList.add('hidden');
-            });
 
             // --- Initialization ---
             function initialize() {
                 playPauseMobileBtn.innerHTML = playIcon.outerHTML; // Set initial mobile icon
                 renderColorPalette();
-                const savedData = localStorage.getItem('autosavedAnimationProject');
-                if (savedData) {
-                    autosaveNotification.classList.remove('hidden');
-                    initializeNewProject();
-                } else {
-                    initializeNewProject();
-                }
-                 if (!localStorage.getItem('animationToolInstructionsSeen')) {
+                initializeNewProject();
+
+                if (!localStorage.getItem('animationToolInstructionsSeen')) {
                     instructionsModal.classList.remove('hidden');
                     localStorage.setItem('animationToolInstructionsSeen', 'true');
                 }
