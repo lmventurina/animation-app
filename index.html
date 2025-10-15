@@ -50,20 +50,30 @@
         .timeline-container::-webkit-scrollbar-thumb:hover {
             background: #6b7280; /* gray-500 */
         }
-        /* Canvas Layering */
+
+        /* Viewport for Zoom/Pan */
+        #viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            border-radius: 0.5rem;
+             background-color: #4b5563; /* gray-600 as fallback */
+        }
+
         .canvas-container {
             position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            max-width: 100%;
+            width: 1280px; /* Fixed internal resolution */
+            height: 720px;
+            transform-origin: 0 0;
         }
+
         .base-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            border-radius: 0.5rem;
             touch-action: none;
         }
         #onion-skin-canvas-behind,
@@ -117,7 +127,7 @@
                 <span class="hidden md:inline">Load</span>
             </label>
             <input type="file" id="load-project-input" class="hidden" accept=".anim">
-             <button id="export-gif" class="bg-purple-600 hover:bg-purple-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
+             <button id="export-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
                 <span class="hidden md:inline">Export</span>
             </button>
@@ -141,6 +151,9 @@
                 <div id="tools-container" class="grid grid-cols-4 gap-2">
                     <button data-tool="pencil" class="tool-button active p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pencil">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
+                    </button>
+                     <button data-tool="pan" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Pan (Hold Space)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M10.064 8.073a.5.5 0 0 0 .436-.447l.86-3.438a.5.5 0 0 0-.61-.61l-3.439.859a.5.5 0 0 0-.447.436L6.23 8.936l-2.71 2.71a.5.5 0 0 0 0 .708l3.439 3.439a.5.5 0 0 0 .708 0l2.71-2.71 2.522-6.305zM8.38 7.62l.253-1.012.759.19-1.012.253zm-1.012.253.253-1.012.759.19-1.012.253z"/></svg>
                     </button>
                     <button data-tool="eraser" class="tool-button p-2 rounded-lg aspect-square flex justify-center items-center bg-slate-700 hover:bg-slate-600 border-2 border-slate-600" title="Eraser">
                          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828l6.879-6.879zm.66 11.34L3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293l.16-.16z"/></svg>
@@ -207,10 +220,10 @@
                 </div>
             </div>
             <!-- Onion Skin -->
-            <div>
+            <div class="flex justify-center p-2">
                 <label for="onion-skin" class="flex items-center cursor-pointer select-none">
-                    <input type="checkbox" id="onion-skin" class="h-4 w-4 rounded border-gray-500 text-indigo-500 focus:ring-indigo-600 bg-slate-700">
-                    <span class="ml-2 text-sm font-medium">Onion Skin</span>
+                    <input type="checkbox" id="onion-skin" class="h-5 w-5 rounded border-gray-500 text-indigo-500 focus:ring-indigo-600 bg-slate-700">
+                    <span class="ml-3 text-base font-bold">Onion Skin</span>
                 </label>
             </div>
             <!-- Background Options -->
@@ -238,14 +251,25 @@
             </div>
         </aside>
         <!-- Canvas -->
-        <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden">
-             <div class="canvas-container shadow-xl">
-                <canvas id="image-bg-canvas" class="base-canvas"></canvas>
-                <canvas id="drawing-bg-canvas" class="base-canvas"></canvas>
-                <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
-                <canvas id="animation-canvas" class="base-canvas cursor-crosshair"></canvas>
-                <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
-                <canvas id="preview-canvas" class="base-canvas"></canvas>
+        <main class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-900 overflow-hidden relative">
+            <div id="viewport" class="shadow-xl">
+                 <div class="canvas-container">
+                    <canvas id="image-bg-canvas" class="base-canvas"></canvas>
+                    <canvas id="drawing-bg-canvas" class="base-canvas"></canvas>
+                    <canvas id="onion-skin-canvas-behind" class="base-canvas"></canvas>
+                    <canvas id="animation-canvas" class="base-canvas"></canvas>
+                    <canvas id="onion-skin-canvas-ahead" class="base-canvas"></canvas>
+                    <canvas id="preview-canvas" class="base-canvas"></canvas>
+                </div>
+            </div>
+            <!-- Zoom Controls -->
+            <div class="absolute bottom-4 left-4 bg-slate-800 p-2 rounded-lg shadow-lg flex items-center gap-2 border border-slate-700 z-10">
+                <button id="zoom-out-btn" class="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-md font-bold text-lg">-</button>
+                <span id="zoom-level-display" class="text-sm font-semibold w-12 text-center">100%</span>
+                <button id="zoom-in-btn" class="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-md font-bold text-lg">+</button>
+                <button id="reset-zoom-btn" class="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-md" title="Reset Zoom">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-fullscreen-exit" viewBox="0 0 16 16"><path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 0a.5.5 0 0 1 .5-.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 14.5 10h-4a.5.5 0 0 1-.5-.5z"/></svg>
+                </button>
             </div>
         </main>
     </div>
@@ -274,170 +298,120 @@
     </footer>
     <!-- GIF Export library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
-    <script id="gif-worker-script" type="text/javascript-worker">
+    
+    <!-- Modal for loading spinner -->
+    <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+        <div class="bg-slate-800 p-8 rounded-lg shadow-xl text-center border border-slate-700">
+            <div class="loader mx-auto"></div>
+            <p id="loading-text" class="mt-4 text-lg font-medium text-white">Generating GIF...</p>
+        </div>
+    </div>
+
+    <!-- Export Options Modal -->
+    <div id="export-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-sm w-full border border-slate-700 relative">
+             <button id="close-export-modal-btn" class="absolute top-2 right-2 text-gray-400 hover:text-white">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Export Animation</h2>
+            <div class="flex flex-col gap-4">
+                 <button id="export-gif-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as GIF</button>
+                 <button id="export-webm-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as WebM</button>
+                 <button id="export-png-sequence-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as PNG Sequence</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Instructions Modal -->
+    <div id="instructions-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
+            <h2 class="text-2xl font-bold mb-6 text-center">How to Use the Animation Tool</h2>
+            <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                <li><b>Layers:</b> Switch between drawing on the 'Animation' layer (for moving parts) and the 'Background' layer (for static scenery).</li>
+                <li><b>Tools:</b> Select a tool like Pencil, Eraser, Lasso, Shapes, or Polygon from the sidebar. For the Polygon tool, click to place points and double-click to finish the shape.</li>
+                <li><b>Undo/Redo:</b> Use the undo/redo buttons in the sidebar or press <code>Ctrl+Z</code> / <code>Ctrl+Y</code>.</li>
+                <li><b>Save/Load Project:</b> Use the 'Save' and 'Load' buttons to save your progress as a <code>.anim</code> file and open it again later.</li>
+                <li><b>Background Options:</b> You can either draw your own background on the background layer or upload an image using the 'Upload Image' button.</li>
+                <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
+                <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
+                <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
+                <li><b>Export GIF:</b> When you're finished, use the 'Export' button to save your animation as a downloadable .gif file or a sequence of .png files.</li>
+            </ol>
+            <div class="mt-8 text-center">
+                <button id="close-instructions-modal" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-8 rounded-lg">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
         // Inlined gif.worker.js to prevent CORS errors
-        // Source: https://github.com/jnordberg/gif.js/blob/master/dist/gif.worker.js
-        var GIF_WORKER_SOURCE = `
+        const GIF_WORKER_SOURCE = `
             var NeuQuant = (function() {
-                function NeuQuant(sample, samplefac) {
-                    var anetwork;
-                    var anetwork_len = 256;
-                    var anetwork_size = anetwork_len * 3;
-                    var anetwork_radius = anetwork_len >> 3;
-                    var anetwork_radpower = anetwork_radius * anetwork_radius;
-                    var anetwork_bias = (1 << 16);
-                    var anetwork_bias_power = 16;
-                    var anetwork_freq_power = 10;
-                    var anetwork_alpha_power = 10;
-                    var anetwork_alpha_bias = 1 << anetwork_alpha_power;
-                    var anetwork_rad_bias = 1 << 8;
-                    var anetwork_rad_bias_power = 8;
-                    var anetwork_bias_freq = (1 << 10);
-                    var anetwork_freq_dec = 30;
-                    var anetwork_alpha_dec = 30;
-                    var anetwork_beta_power = 10;
-                    var anetwork_beta = (1 << anetwork_beta_power) >> 2;
-                    var anetwork_beta_gamma = (1 << (anetwork_beta_power + 8));
-                    var anetwork_gamma_power = 10;
-                    var anetwork_init_alpha = (1 << anetwork_alpha_power);
-                    var anetwork_init_rad = anetwork_len >> 3;
-                    var anetwork_init_bias_radius = anetwork_init_rad * anetwork_rad_bias;
-                    this.learn = function() {
-                        var i, j, b, g, r;
-                        var radius, rad, alpha, step, delta, samplepixels;
-                        var p, pix, lim;
-                        samplepixels = anetwork.length / 3;
-                        lim = samplepixels;
-                        step = lim / 100;
-                        alpha = anetwork_init_alpha;
-                        radius = anetwork_init_rad;
-                        rad = radius >> anetwork_rad_bias_power;
-                        if (rad <= 1) rad = 0;
-                        for (i = 0; i < rad; i++) anetwork[i] = new Int32Array(anetwork_len * 3);
-                        i = 0;
-                        j = 0;
-                        while (j < lim) {
-                            b = (sample[j++] & 0xff) << anetwork_bias_power;
-                            g = (sample[j++] & 0xff) << anetwork_bias_power;
-                            r = (sample[j++] & 0xff) << anetwork_bias_power;
-                            p = this.contest(b, g, r);
-                            this.altersingle(alpha, p, b, g, r);
-                            if (rad != 0) this.alterneigh(rad, p, b, g, r); /* alter neighbours */
-                            if (j % step == 0) {
-                                alpha -= alpha / anetwork_alpha_dec;
-                                radius -= radius / anetwork_rad_dec;
-                                rad = radius >> anetwork_rad_bias_power;
-                                if (rad <= 1) rad = 0;
-                            }
-                        }
-                    };
-                    this.unbiasnet = function() {
-                        var i, j;
-                        for (i = 0; i < anetwork_len; i++) {
-                            anetwork[i * 3 + 0] >>= anetwork_bias_power;
-                            anetwork[i * 3 + 1] >>= anetwork_bias_power;
-                            anetwork[i * 3 + 2] >>= anetwork_bias_power;
-                        }
-                    };
-                    this.anetwork = new Int32Array(anetwork_size);
-                    this.buildcolormap = function() {
-                        this.learn();
-                        this.unbiasnet();
-                        this.inxbuild();
-                    };
+                function NeuQuant(pixels, samplefac) {
+                    var network;
+                    var netindex;
+                    var bias;
+                    var freq;
+                    var radpower;
+                    this.netsize = 256;
+                    this.specials = 3;
+                    this.netbiasshift = 4;
+                    this.maxnetpos = this.netsize - 1;
+                    this.initrad = this.netsize >> 3;
+                    this.radiusbiasshift = 6;
+                    this.radiusbias = 1 << this.radiusbiasshift;
+                    this.initradius = this.initrad * this.radiusbias;
+                    this.radiusdec = 30;
+                    this.alphabiasshift = 10;
+                    this.initalpha = 1 << this.alphabiasshift;
+                    this.radbiasshift = 8;
+                    this.radbias = 1 << this.radbiasshift;
+                    this.alpharadbshift = this.alphabiasshift + this.radbiasshift;
+                    this.alpharadbias = 1 << this.alpharadbshift;
+                    this.pixels = pixels;
+                    this.samplefac = samplefac;
+                    this.network = new Array(this.netsize);
+                    for (var i = 0; i < this.netsize; i++) {
+                        this.network[i] = new Array(4);
+                        var p = this.network[i];
+                        p[0] = p[1] = p[2] = (i << (this.netbiasshift + 8)) / this.netsize;
+                        this.freq[i] = (1 << this.netbiasshift) / this.netsize;
+                        this.bias[i] = 0;
+                    }
                 }
                 NeuQuant.prototype = {
-                    lookup: function(b, g, r) { return this.contest(b << anetwork_bias_power, g << anetwork_bias_power, r << anetwork_bias_power); },
-                    contest: function(b, g, r) {
-                        var i, dist, a, biasdist, betafreq;
-                        var p, bestd, bestbiasd, bestp, bestbiasp;
-                        var freq, beta;
-                        bestd = ~(1 << 31);
-                        bestbiasd = bestd;
-                        bestp = -1;
-                        bestbiasp = bestp;
-                        for (i = 0; i < anetwork_len; i++) {
-                            p = anetwork[i];
-                            dist = p[0] - b; if (dist < 0) dist = -dist;
-                            a = p[1] - g; if (a < 0) a = -a;
-                            dist += a;
-                            a = p[2] - r; if (a < 0) a = -a;
-                            dist += a;
-                            if (dist < bestd) {
-                                bestd = dist;
-                                bestp = i;
-                            }
-                            biasdist = dist - ((anetwork_bias[i]) >> (anetwork_bias_power - anetwork_freq_power));
-                            if (biasdist < bestbiasd) {
-                                bestbiasd = biasdist;
-                                bestbiasp = i;
-                            }
-                            betafreq = (anetwork_freq[i] >> anetwork_beta_power);
-                            anetwork_freq[i] -= betafreq;
-                            anetwork_bias[i] += (betafreq << anetwork_gamma_power);
-                        }
-                        anetwork_freq[bestp] += anetwork_beta;
-                        anetwork_bias[bestp] -= anetwork_beta_gamma;
-                        return (bestp);
-                    },
-                    altersingle: function(alpha, i, b, g, r) {
-                        var n = anetwork[i];
-                        n[0] -= (alpha * (n[0] - b)) / anetwork_init_alpha;
-                        n[1] -= (alpha * (n[1] - g)) / anetwork_init_alpha;
-                        n[2] -= (alpha * (n[2] - r)) / anetwork_init_alpha;
-                    },
-                    alterneigh: function(rad, i, b, g, r) {
-                        var j, k, p, q, a, m;
-                        var lo = i - rad; if (lo < -1) lo = -1;
-                        var hi = i + rad; if (hi > anetwork_len) hi = anetwork_len;
-                        j = i + 1;
-                        k = i - 1;
-                        m = 1;
-                        while ((j < hi) || (k > lo)) {
-                            a = anetwork_radpower[m++];
-                            if (j < hi) {
-                                p = anetwork[j++];
-                                try {
-                                    p[0] -= (a * (p[0] - b)) / anetwork_rad_bias;
-                                    p[1] -= (a * (p[1] - g)) / anetwork_rad_bias;
-                                    p[2] -= (a * (p[2] - r)) / anetwork_rad_bias;
-                                } catch (e) {}
-                            }
-                            if (k > lo) {
-                                p = anetwork[k--];
-                                try {
-                                    p[0] -= (a * (p[0] - b)) / anetwork_rad_bias;
-                                    p[1] -= (a * (p[1] - g)) / anetwork_rad_bias;
-                                    p[2] -= (a * (p[2] - r)) / anetwork_rad_bias;
-                                } catch (e) {}
+                    learn: function () {
+                        var i,j,b,g,r;
+                        var radius, rad, alpha, step, delta, samplepixels;
+                        var p, pix, lim;
+                        samplepixels = this.pixels.length / 3;
+                        lim = samplepixels;
+                        step = lim / 100;
+                        alpha = this.initalpha;
+                        radius = this.initradius;
+                        rad = radius >> this.radiusbiasshift;
+                        if (rad <= 1) rad = 0;
+                        for (i = 0; i < rad; i++) this.radpower[i] = alpha * (((rad * rad - i * i) * this.radbias) / (rad * rad));
+                        i = 0;
+                        j = 0;
+                        while(j < lim) {
+                            b = (this.pixels[j++] & 0xff) << this.netbiasshift;
+                            g = (this.pixels[j++] & 0xff) << this.netbiasshift;
+                            r = (this.pixels[j++] & 0xff) << this.netbiasshift;
+                            p = this.contest(b, g, r);
+                            this.altersingle(alpha, p, b, g, r);
+                            if (rad != 0) this.alterneigh(rad, p, b, g, r);
+                            if (j % step == 0) {
+                                alpha -= alpha / this.radiusdec;
+                                radius -= radius / this.radiusdec;
+                                rad = radius >> this.radiusbiasshift;
+                                if (rad <= 1) rad = 0;
+                                for (i = 0; i < rad; i++) this.radpower[i] = alpha * (((rad * rad - i * i) * this.radbias) / (rad * rad));
                             }
                         }
                     },
-                    inxbuild: function() {
-                        var i, j, p, q, smallpos, smallval, k;
-                        for (i = 0; i < anetwork_len; i++) {
-                            p = anetwork[i];
-                            smallpos = i;
-                            smallval = p[1];
-                            for (j = i + 1; j < anetwork_len; j++) {
-                                q = anetwork[j];
-                                if (q[1] < smallval) {
-                                    smallpos = j;
-                                    smallval = q[1];
-                                }
-                            }
-                            q = anetwork[smallpos];
-                            if (i != smallpos) {
-                                j = q[0];   q[0] = p[0];   p[0] = j;
-                                j = q[1];   q[1] = p[1];   p[1] = j;
-                                j = q[2];   q[2] = p[2];   p[2] = j;
-                                j = q[3];   q[3] = p[3];   p[3] = j;
-                            }
-                        }
-                    }
                 };
                 return NeuQuant;
-            })();
+            }());
             var LZWEncoder = (function() {
                 function LZWEncoder(width, height, pixels, color_depth) {
                     var accum = new Uint8Array(256);
@@ -453,8 +427,7 @@
                         a_count = 0;
                         var ent = nextPixel();
                         var hshift = 0;
-                        for (var fcode = htab.length; fcode < 65536; fcode *= 2)
-                            ++hshift;
+                        for (var fcode = htab.length; fcode < 65536; fcode *= 2) ++hshift;
                         hshift = 8 - hshift;
                         var hsize_reg = htab.length;
                         cl_hash(hsize_reg);
@@ -467,11 +440,9 @@
                                 continue;
                             } else if (htab[i] >= 0) {
                                 var disp = hsize_reg - i;
-                                if (i === 0)
-                                    disp = 1;
+                                if (i === 0) disp = 1;
                                 do {
-                                    if ((i -= disp) < 0)
-                                        i += hsize_reg;
+                                    if ((i -= disp) < 0) i += hsize_reg;
                                     if (htab[i] == fcode) {
                                         ent = codetab[i];
                                         continue outer_loop;
@@ -483,16 +454,15 @@
                             if (free_ent < maxmaxcode) {
                                 codetab[i] = free_ent++;
                                 htab[i] = fcode;
-                            } else
-                                cl_block(os);
+                            } else cl_block(os);
                         }
                         output(ent, os);
                         output(EOFCode, os);
                     };
                 }
                 return LZWEncoder;
-            })();
-            onmessage = function(e) {
+            }());
+            self.onmessage = function(e) {
                 var data = e.data;
                 var width = data.width;
                 var height = data.height;
@@ -506,39 +476,10 @@
                 postMessage(stream.bytes);
             };
         `;
-    </script>
 
 
-    <!-- Modal for loading spinner -->
-    <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-        <div class="bg-slate-800 p-8 rounded-lg shadow-xl text-center border border-slate-700">
-            <div class="loader mx-auto"></div>
-            <p class="mt-4 text-lg font-medium text-white">Generating GIF...</p>
-        </div>
-    </div>
-    <!-- Instructions Modal -->
-    <div id="instructions-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700">
-            <h2 class="text-2xl font-bold mb-6 text-center">How to Use the Animation Tool</h2>
-            <ol class="list-decimal list-inside space-y-3 text-gray-300">
-                <li><b>Layers:</b> Switch between drawing on the 'Animation' layer (for moving parts) and the 'Background' layer (for static scenery).</li>
-                <li><b>Tools:</b> Select a tool like Pencil, Eraser, Lasso, Shapes, or Polygon from the sidebar. For the Polygon tool, click to place points and double-click to finish the shape.</li>
-                <li><b>Undo/Redo:</b> Use the undo/redo buttons in the sidebar or press <code>Ctrl+Z</code> / <code>Ctrl+Y</code>.</li>
-                <li><b>Save/Load Project:</b> Use the 'Save' and 'Load' buttons to save your progress as a <code>.anim</code> file and open it again later.</li>
-                <li><b>Background Options:</b> You can either draw your own background on the background layer or upload an image using the 'Upload Image' button.</li>
-                <li><b>Add & Duplicate Frames:</b> Use the <span class="text-green-400">'+'</span> button in the timeline to add a new frame. Hover over a frame to find the copy icon to duplicate it.</li>
-                <li><b>Onion Skin:</b> Check this box in the toolbar to see faint outlines of your previous and *next* drawings, which helps with smooth animation.</li>
-                <li><b>Play & Adjust FPS:</b> Use the play button and <span class="text-yellow-400">FPS</span> slider in the toolbar to preview your animation.</li>
-                <li><b>Export GIF:</b> When you're finished, use the 'Export GIF' button to save your animation as a downloadable .gif file.</li>
-            </ol>
-            <div class="mt-8 text-center">
-                <button id="close-instructions-modal" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-8 rounded-lg">Got it!</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const viewport = document.getElementById('viewport');
             const canvasContainer = document.querySelector('.canvas-container');
             const imageBgCanvas = document.getElementById('image-bg-canvas');
             const drawingBgCanvas = document.getElementById('drawing-bg-canvas');
@@ -578,8 +519,21 @@
             const playPauseMobileBtn = document.getElementById('play-pause-mobile');
             const fpsSliderMobile = document.getElementById('fps-slider-mobile');
             const fpsValueMobile = document.getElementById('fps-value-mobile');
-            const exportGifBtn = document.getElementById('export-gif');
+            // Zoom Controls
+            const zoomInBtn = document.getElementById('zoom-in-btn');
+            const zoomOutBtn = document.getElementById('zoom-out-btn');
+            const resetZoomBtn = document.getElementById('reset-zoom-btn');
+            const zoomLevelDisplay = document.getElementById('zoom-level-display');
+            // Export controls
+            const exportBtn = document.getElementById('export-btn');
+            const exportModal = document.getElementById('export-modal');
+            const closeExportModalBtn = document.getElementById('close-export-modal-btn');
+            const exportGifBtn = document.getElementById('export-gif-btn');
+            const exportWebmBtn = document.getElementById('export-webm-btn');
+            const exportPngSequenceBtn = document.getElementById('export-png-sequence-btn');
+            
             const loadingModal = document.getElementById('loading-modal');
+            const loadingText = document.getElementById('loading-text');
             const instructionsModal = document.getElementById('instructions-modal');
             const closeInstructionsModalBtn = document.getElementById('close-instructions-modal');
             const showInstructionsBtn = document.getElementById('show-instructions');
@@ -597,6 +551,7 @@
             let currentFrameIndex = 0;
             let isDrawing = false;
             let activeTool = 'pencil';
+            let previousTool = 'pencil';
             let activeLayer = 'animation'; // 'animation' or 'background'
             let shapeStartPos = null;
             let polygonPoints = [];
@@ -605,6 +560,14 @@
             let lastFrameTime = 0;
             let uploadedBackgroundImage = null;
             let lassoPoints = [];
+
+            // --- Zoom & Pan State ---
+            let zoomLevel = 1.0;
+            let panOffset = { x: 0, y: 0 };
+            let isPanning = false;
+            let lastPanPosition = { x: 0, y: 0 };
+
+
             const paletteColors = [
                 '#ffffff', '#c2c2c2', '#898989', '#505050', '#000000',
                 '#ff5b5b', '#ff985b', '#ffff5b', '#98ff5b', '#5bff98',
@@ -637,18 +600,40 @@
             }
 
             // --- Canvas Setup ---
-            function resizeCanvas() {
-                const { width, height } = canvasContainer.getBoundingClientRect();
-                [imageBgCanvas, drawingBgCanvas, onionBehindCanvas, animationCanvas, onionAheadCanvas, previewCanvas].forEach(c => {
-                    c.width = width;
-                    c.height = height;
+            function initialCanvasSetup() {
+                // Set fixed internal resolution on all canvases
+                 [imageBgCanvas, drawingBgCanvas, onionBehindCanvas, animationCanvas, onionAheadCanvas, previewCanvas].forEach(c => {
+                    c.width = 1280;
+                    c.height = 720;
                 });
-                if (!backgroundData.current) {
+                 if (!backgroundData.current) {
                     backgroundData.current = drawingBgCanvas.toDataURL();
                 }
-                drawUploadedBackground();
+                fitCanvasToViewport();
                 redrawAll();
             }
+
+            function fitCanvasToViewport() {
+                const viewportRect = viewport.getBoundingClientRect();
+                const canvasAspectRatio = 16 / 9;
+                const viewportAspectRatio = viewportRect.width / viewportRect.height;
+
+                let newZoom;
+                if (viewportAspectRatio > canvasAspectRatio) {
+                    // Viewport is wider than canvas
+                    newZoom = viewportRect.height / 720;
+                } else {
+                    // Viewport is taller than canvas
+                    newZoom = viewportRect.width / 1280;
+                }
+                
+                zoomLevel = newZoom;
+                panOffset.x = (viewportRect.width - (1280 * zoomLevel)) / 2;
+                panOffset.y = (viewportRect.height - (720 * zoomLevel)) / 2;
+                updateCanvasTransform();
+            }
+
+
              function redrawAll() {
                 loadFrame(currentFrameIndex);
                 loadBackground();
@@ -718,19 +703,35 @@
 
             // --- Drawing Logic ---
             function getMousePos(e) {
-                const rect = animationCanvas.getBoundingClientRect();
+                const rect = viewport.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                // Translate viewport coordinates to canvas coordinates
+                const canvasX = (clientX - rect.left - panOffset.x) / zoomLevel;
+                const canvasY = (clientY - rect.top - panOffset.y) / zoomLevel;
+
                 return {
-                    x: (clientX - rect.left),
-                    y: (clientY - rect.top)
+                    x: canvasX,
+                    y: canvasY
                 };
             }
+
             function getActiveContext() {
                 return activeLayer === 'animation' ? animCtx : drawingBgCtx;
             }
+
             function startDrawing(e) {
                 if (e.touches) e.preventDefault();
+                
+                if (activeTool === 'pan') {
+                    isPanning = true;
+                    lastPanPosition.x = e.clientX;
+                    lastPanPosition.y = e.clientY;
+                    viewport.style.cursor = 'grabbing';
+                    return;
+                }
+                
                 const pos = getMousePos(e);
 
                 if (activeTool === 'polygon') {
@@ -764,6 +765,18 @@
             }
 
             function draw(e) {
+                if(isPanning) {
+                    const dx = e.clientX - lastPanPosition.x;
+                    const dy = e.clientY - lastPanPosition.y;
+                    panOffset.x += dx;
+                    panOffset.y += dy;
+                    lastPanPosition.x = e.clientX;
+                    lastPanPosition.y = e.clientY;
+                    updateCanvasTransform();
+                    return;
+                }
+
+
                 const pos = getMousePos(e);
                 if (activeTool === 'polygon' && polygonPoints.length > 0) {
                     drawPolygonPreview(pos);
@@ -774,7 +787,7 @@
                 
                 const currentCtx = getActiveContext();
                 if (['pencil', 'eraser'].includes(activeTool)) {
-                    currentCtx.lineWidth = brushSizeSlider.value;
+                    currentCtx.lineWidth = brushSizeSlider.value / zoomLevel;
                     currentCtx.lineCap = 'round';
                     currentCtx.lineJoin = 'round';
                     currentCtx.globalCompositeOperation = activeTool === 'eraser' ? 'destination-out' : 'source-over';
@@ -791,6 +804,12 @@
                 }
             }
             function stopDrawing(e) {
+                if(isPanning) {
+                    isPanning = false;
+                    viewport.style.cursor = 'grab';
+                    return;
+                }
+
                 if (!isDrawing) return;
                 isDrawing = false;
                 const currentCtx = getActiveContext();
@@ -817,7 +836,7 @@
             // --- Shape Drawing Logic ---
             function drawShapePreview(currentPos) {
                 clearCanvas(previewCtx);
-                previewCtx.lineWidth = brushSizeSlider.value;
+                previewCtx.lineWidth = brushSizeSlider.value / zoomLevel;
                 previewCtx.strokeStyle = colorPicker.value;
                 previewCtx.beginPath();
                 const start = shapeStartPos;
@@ -838,7 +857,7 @@
             function drawShape(endPos) {
                 clearCanvas(previewCtx);
                 const currentCtx = getActiveContext();
-                currentCtx.lineWidth = brushSizeSlider.value;
+                currentCtx.lineWidth = brushSizeSlider.value / zoomLevel;
                 currentCtx.strokeStyle = colorPicker.value;
                 currentCtx.lineCap = 'round';
                 currentCtx.lineJoin = 'round';
@@ -865,7 +884,7 @@
                 clearCanvas(previewCtx);
                 if (polygonPoints.length === 0) return;
 
-                previewCtx.lineWidth = brushSizeSlider.value;
+                previewCtx.lineWidth = brushSizeSlider.value / zoomLevel;
                 previewCtx.strokeStyle = colorPicker.value;
                 previewCtx.lineCap = 'round';
                 previewCtx.lineJoin = 'round';
@@ -894,7 +913,7 @@
                 }
 
                 const currentCtx = getActiveContext();
-                currentCtx.lineWidth = brushSizeSlider.value;
+                currentCtx.lineWidth = brushSizeSlider.value / zoomLevel;
                 currentCtx.strokeStyle = colorPicker.value;
                 currentCtx.lineCap = 'round';
                 currentCtx.lineJoin = 'round';
@@ -1132,8 +1151,8 @@
                 const thumbCanvas = timeline.querySelector(`canvas[data-index='${index}']`);
                 if (!thumbCanvas || !frames[index] || !frames[index].current) return;
                 const thumbCtx = thumbCanvas.getContext('2d');
-                thumbCanvas.width = thumbCanvas.offsetWidth * 2;
-                thumbCanvas.height = thumbCanvas.offsetHeight * 2;
+                thumbCanvas.width = 160; // Fixed thumbnail size
+                thumbCanvas.height = 90;
                 const img = new Image();
                 img.onload = () => {
                     thumbCtx.fillStyle = 'white';
@@ -1226,12 +1245,14 @@
                 animationTimeEl.textContent = `${duration.toFixed(1)}s`;
                 frameCountEl.textContent = `${currentFrameIndex + 1} / ${frames.length}`;
             }
-            // --- GIF Export ---
+
+            // --- Export Logic ---
             async function exportToGif() {
+                exportModal.classList.add('hidden');
+                loadingText.textContent = 'Generating GIF...';
                 loadingModal.classList.remove('hidden');
 
-                const workerScriptContent = document.getElementById('gif-worker-script').textContent;
-                const workerBlob = new Blob([workerScriptContent.replace('var GIF_WORKER_SOURCE = `', '').replace('`;', '')], { type: 'application/javascript' });
+                const workerBlob = new Blob([GIF_WORKER_SOURCE], { type: 'application/javascript' });
                 const workerUrl = URL.createObjectURL(workerBlob);
 
                 const gif = new GIF({
@@ -1272,6 +1293,111 @@
                 });
                 gif.render();
             }
+
+            async function exportAsWebM() {
+                exportModal.classList.add('hidden');
+                loadingText.textContent = 'Generating WebM...';
+                loadingModal.classList.remove('hidden');
+
+                const renderCanvas = document.createElement('canvas');
+                renderCanvas.width = animationCanvas.width;
+                renderCanvas.height = animationCanvas.height;
+                const renderCtx = renderCanvas.getContext('2d');
+                const fps = parseInt(fpsSlider.value, 10);
+
+                const stream = renderCanvas.captureStream(fps);
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+                const chunks = [];
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'animation.webm';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    loadingModal.classList.add('hidden');
+                };
+
+                recorder.start();
+
+                const bgDrawnImage = new Image();
+                bgDrawnImage.src = backgroundData.current;
+                await bgDrawnImage.decode();
+
+                for (let i = 0; i < frames.length; i++) {
+                    const frame = frames[i];
+                    await new Promise(resolve => {
+                        const frameImg = new Image();
+                        frameImg.onload = () => {
+                            renderCtx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+                            if (uploadedBackgroundImage) {
+                                renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            } else {
+                                renderCtx.fillStyle = '#FFFFFF';
+                                renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
+                            }
+                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
+                            resolve();
+                        };
+                        frameImg.src = frame.current;
+                    });
+                    await new Promise(res => setTimeout(res, 1000 / fps));
+                }
+
+                recorder.stop();
+            }
+
+             async function exportAsPngSequence() {
+                exportModal.classList.add('hidden');
+                loadingText.textContent = 'Exporting PNGs...';
+                loadingModal.classList.remove('hidden');
+
+                const renderCanvas = document.createElement('canvas');
+                renderCanvas.width = animationCanvas.width;
+                renderCanvas.height = animationCanvas.height;
+                const renderCtx = renderCanvas.getContext('2d');
+                const bgDrawnImage = new Image();
+                bgDrawnImage.src = backgroundData.current;
+                await bgDrawnImage.decode();
+
+                function download(url, filename) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+
+                for (let i = 0; i < frames.length; i++) {
+                    const frame = frames[i];
+                    await new Promise(resolve => {
+                         const frameImg = new Image();
+                         frameImg.onload = () => {
+                            renderCtx.clearRect(0,0,renderCanvas.width, renderCanvas.height);
+                            if (uploadedBackgroundImage) renderCtx.drawImage(uploadedBackgroundImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            else { renderCtx.fillStyle = '#FFFFFF'; renderCtx.fillRect(0,0,renderCanvas.width, renderCanvas.height); }
+                            renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
+                            renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
+                            
+                            const dataUrl = renderCanvas.toDataURL('image/png');
+                            const frameNumber = String(i + 1).padStart(3, '0');
+                            download(dataUrl, `frame_${frameNumber}.png`);
+                            resolve();
+                        };
+                        frameImg.src = frame.current;
+                    });
+                     await new Promise(res => setTimeout(res, 100));
+                }
+
+                loadingModal.classList.add('hidden');
+            }
+
+
             // --- Background Image ---
              function drawUploadedBackground() {
                 clearCanvas(imageBgCtx);
@@ -1331,18 +1457,49 @@
                 });
             }
 
+            // --- Zoom and Pan Logic ---
+            function updateCanvasTransform() {
+                canvasContainer.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`;
+                zoomLevelDisplay.textContent = `${Math.round(zoomLevel * 100)}%`;
+            }
+
+            function handleZoom(e) {
+                e.preventDefault();
+                const zoomIntensity = 0.1;
+                const oldZoomLevel = zoomLevel;
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const mouseToCanvasX = (mouseX - panOffset.x) / oldZoomLevel;
+                const mouseToCanvasY = (mouseY - panOffset.y) / oldZoomLevel;
+
+                if (e.deltaY < 0) { // Zoom in
+                    zoomLevel = Math.min(zoomLevel * (1 + zoomIntensity), 10);
+                } else { // Zoom out
+                    zoomLevel = Math.max(zoomLevel * (1 - zoomIntensity), 0.1);
+                }
+
+                panOffset.x = mouseX - mouseToCanvasX * zoomLevel;
+                panOffset.y = mouseY - mouseToCanvasY * zoomLevel;
+
+                updateCanvasTransform();
+            }
+
+
             // --- Event Listeners ---
             animationCanvas.addEventListener('dblclick', e => {
                 if (activeTool === 'polygon') {
                     finishPolygon();
                 }
             });
-            animationCanvas.addEventListener('mousedown', startDrawing);
-            animationCanvas.addEventListener('mousemove', draw);
+            viewport.addEventListener('mousedown', startDrawing);
+            window.addEventListener('mousemove', draw);
             window.addEventListener('mouseup', stopDrawing);
-            animationCanvas.addEventListener('touchstart', startDrawing, { passive: false });
-            animationCanvas.addEventListener('touchmove', draw, { passive: false });
+            viewport.addEventListener('touchstart', startDrawing, { passive: false });
+            window.addEventListener('touchmove', draw, { passive: false });
             window.addEventListener('touchend', stopDrawing);
+
             toolButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     if (activeTool === 'polygon' && button.dataset.tool !== 'polygon') {
@@ -1357,6 +1514,11 @@
                         clearCanvas(previewCtx);
                     }
                     activeTool = button.dataset.tool;
+                    if(activeTool === 'pan') {
+                        viewport.style.cursor = 'grab';
+                    } else {
+                        viewport.style.cursor = 'crosshair';
+                    }
                     toolButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
                 });
@@ -1383,6 +1545,23 @@
                     if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
                     if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
                 }
+                if (e.code === 'Space' && !isPanning) {
+                    e.preventDefault();
+                    previousTool = activeTool;
+                    activeTool = 'pan';
+                    viewport.style.cursor = 'grab';
+                }
+            });
+             window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if(activeTool === 'pan'){
+                        activeTool = previousTool;
+                        if(activeTool !== 'pan'){
+                           viewport.style.cursor = 'crosshair';
+                        }
+                    }
+                }
             });
             brushSizeSlider.addEventListener('input', () => { brushSizeValue.textContent = brushSizeSlider.value; });
             addFrameBtn.addEventListener('click', addNewFrame);
@@ -1403,8 +1582,16 @@
                 fpsValue.textContent = val;
                 updateTimelineInfo();
             });
+            
+            // Export Listeners
+            exportBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
+            closeExportModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
             exportGifBtn.addEventListener('click', exportToGif);
-            window.addEventListener('resize', resizeCanvas);
+            exportWebmBtn.addEventListener('click', exportAsWebM);
+            exportPngSequenceBtn.addEventListener('click', exportAsPngSequence);
+
+
+            window.addEventListener('resize', fitCanvasToViewport);
             closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
             showInstructionsBtn.addEventListener('click', () => instructionsModal.classList.remove('hidden'));
             saveProjectBtn.addEventListener('click', saveProjectToFile);
@@ -1415,6 +1602,18 @@
             colorPicker.addEventListener('input', () => {
                  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
             });
+
+            // Zoom Listeners
+            viewport.addEventListener('wheel', handleZoom);
+            zoomInBtn.addEventListener('click', () => {
+                const rect = viewport.getBoundingClientRect();
+                handleZoom({ preventDefault: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2, deltaY: -1 });
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                 const rect = viewport.getBoundingClientRect();
+                handleZoom({ preventDefault: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2, deltaY: 1 });
+            });
+            resetZoomBtn.addEventListener('click', fitCanvasToViewport);
 
             // --- Initialization ---
             function initialize() {
@@ -1436,7 +1635,7 @@
                     redoStack: []
                 }];
                 backgroundData.current = blankCanvas.toDataURL();
-                resizeCanvas();
+                initialCanvasSetup();
                 renderTimeline();
                 loadFrame(0);
                 loadBackground();
