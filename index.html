@@ -170,7 +170,7 @@
                 <span class="hidden md:inline">Load</span>
             </label>
             <input type="file" id="load-project-input" class="hidden" accept=".anim">
-             <button id="open-export-modal-btn" class="header-btn bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
+             <button id="export-webm-btn" class="header-btn bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold p-2 md:py-2 md:px-4 rounded-lg text-sm flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
                 <span class="hidden md:inline">Export</span>
             </button>
@@ -349,19 +349,6 @@
         </div>
     </div>
 
-    <!-- Export Options Modal -->
-    <div id="export-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-800 text-white p-6 rounded-lg shadow-xl max-w-sm w-full border border-slate-700 relative">
-             <button id="close-export-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
-            <h2 class="text-2xl font-bold mb-6 text-center">Export Animation</h2>
-            <div class="flex flex-col gap-4">
-                 <button id="export-webm-btn-modal" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as WebM</button>
-                 <button id="export-apng-btn-modal" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg w-full">Export as APNG</button>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Instructions Modal -->
     <div id="instructions-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
         <div class="bg-gray-800 text-white p-8 rounded-lg shadow-xl max-w-2xl w-full border border-slate-700 max-h-[90vh] overflow-y-auto">
@@ -403,7 +390,7 @@
                 </div>
                 <div>
                     <dt class="font-bold text-lg text-indigo-400">Save, Load, & Export</dt>
-                    <dd>Use the header buttons to save your project as a <code class="bg-slate-700 p-1 rounded">.anim</code> file, load it later, or export your finished animation as a WebM video or an APNG file.</dd>
+                    <dd>Use the header buttons to save your project as a <code class="bg-slate-700 p-1 rounded">.anim</code> file, load it later, or export your finished animation as a WebM video.</dd>
                 </div>
             </dl>
             <div class="mt-8 text-center">
@@ -411,7 +398,6 @@
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/apng-js/dist/apng-js.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- Canvas & Context Setup ---
@@ -465,11 +451,7 @@
             const zoomLevelDisplay = document.getElementById('zoom-level-display');
             
             // Modals & File I/O
-            const openExportModalBtn = document.getElementById('open-export-modal-btn');
-            const exportModal = document.getElementById('export-modal');
-            const closeExportModalBtn = document.getElementById('close-export-modal-btn');
-            const exportWebmBtnModal = document.getElementById('export-webm-btn-modal');
-            const exportApngBtnModal = document.getElementById('export-apng-btn-modal');
+            const exportWebmBtn = document.getElementById('export-webm-btn');
             const loadingModal = document.getElementById('loading-modal');
             const loadingText = document.getElementById('loading-text');
             const instructionsModal = document.getElementById('instructions-modal');
@@ -1244,7 +1226,14 @@
             const exportAsWebM = async () => {
                 updateCurrentLayerData(); // Save the current frame before exporting
                 showLoading('Exporting WebM...');
-                const stream = animationCanvas.captureStream(0);
+
+                // Create a temporary canvas to ensure smooth frame rendering
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = animationCanvas.width;
+                exportCanvas.height = animationCanvas.height;
+                const exportCtx = exportCanvas.getContext('2d');
+
+                const stream = exportCanvas.captureStream(fpsSlider.value); // Use the temporary canvas for capture
                 const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
                 const chunks = [];
                 recorder.ondataavailable = e => chunks.push(e.data);
@@ -1257,46 +1246,23 @@
                     a.click();
                     URL.revokeObjectURL(url);
                     hideLoading();
+                    // Restore the view to the current frame after export
+                    selectFrame(currentFrameIndex);
                 };
 
                 recorder.start();
 
-                const frameInterval = 1000 / fpsSlider.value;
                 for (const frame of frames) {
                     const frameCanvas = await createCompositeFrame(frame.data);
-                    clearCanvas(animCtx);
-                    animCtx.drawImage(frameCanvas, 0, 0);
-                    stream.getVideoTracks()[0].requestFrame();
-                    await new Promise(resolve => setTimeout(resolve, frameInterval));
+                    clearCanvas(exportCtx);
+                    exportCtx.drawImage(frameCanvas, 0, 0);
+                    // The stream will capture at the specified FPS, so no need for timeout
                 }
                 
-                recorder.stop();
-            };
-            
-            const exportAsAPNG = async () => {
-                updateCurrentLayerData(); // Save the current frame before exporting
-                showLoading('Exporting APNG...');
-                const frameBuffers = [];
-                const delays = [];
-                const frameInterval = 1000 / fpsSlider.value;
-
-                for (const frame of frames) {
-                    const frameCanvas = await createCompositeFrame(frame.data);
-                    const blob = await new Promise(resolve => frameCanvas.toBlob(resolve, 'image/png'));
-                    const buffer = await blob.arrayBuffer();
-                    frameBuffers.push(buffer);
-                    delays.push(frameInterval);
-                }
-
-                const apng = APNG.encode(frameBuffers, delays);
-                const blob = new Blob([apng], { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${projectTitleEl.textContent.trim()}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
-                hideLoading();
+                // A short delay to ensure the last frame is captured
+                setTimeout(() => {
+                    recorder.stop();
+                }, 100);
             };
             
             // --- Initialization ---
@@ -1389,10 +1355,7 @@
                 clearBgBtn.addEventListener('click', clearBackground);
                 showInstructionsBtn.addEventListener('click', () => instructionsModal.classList.remove('hidden'));
                 closeInstructionsModalBtn.addEventListener('click', () => instructionsModal.classList.add('hidden'));
-                openExportModalBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
-                closeExportModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
-                exportWebmBtnModal.addEventListener('click', exportAsWebM);
-                exportApngBtnModal.addEventListener('click', exportAsAPNG);
+                exportWebmBtn.addEventListener('click', exportAsWebM);
 
                 // Initial setup
                 playPauseMobileBtn.innerHTML = playIcon.outerHTML;
