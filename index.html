@@ -1160,15 +1160,17 @@
                             }
                             renderCtx.drawImage(bgDrawnImage, 0, 0, renderCanvas.width, renderCanvas.height);
                             renderCtx.drawImage(frameImg, 0, 0, renderCanvas.width, renderCanvas.height);
-                            resolve();
+                            // Wait for the next browser paint to ensure the canvas is updated before the next frame.
+                            requestAnimationFrame(resolve);
                         };
                         frameImg.src = frame.current;
                     });
-                     // Give the recorder time to process the frame
-                    await new Promise(res => setTimeout(res, 1000/fps));
                 }
-
-                recorder.stop();
+                
+                // A small delay to ensure the last frame is processed by the recorder before stopping.
+                setTimeout(() => {
+                    recorder.stop();
+                }, 100);
             }
 
             // --- Background Image ---
